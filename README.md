@@ -1,2 +1,3 @@
-# Example
-An example greeter plugin
+# RuneShare
+
+Share bank tabs with players
