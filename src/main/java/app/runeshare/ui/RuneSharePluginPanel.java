@@ -29,6 +29,8 @@ public class RuneSharePluginPanel extends PluginPanel {
 
     private TagTab activeTagTab = null;
 
+    private List<Integer> activeItemIds = null;
+
     private Layout activeLayout = null;
 
     public RuneSharePluginPanel(@NonNull RuneShareConfig runeShareConfig) {
@@ -42,9 +44,10 @@ public class RuneSharePluginPanel extends PluginPanel {
         drawPanel();
     }
 
-    public void updateActiveTag(@Nullable TagTab activeTagTab, @Nullable Layout activeLayout) {
+    public void updateActiveTag(@Nullable TagTab activeTagTab, @Nullable List<Integer> activeItemIds, @Nullable Layout activeLayout) {
         this.activeTagTab = activeTagTab;
         this.activeLayout = activeLayout;
+        this.activeItemIds = activeItemIds;
 
         if (activeTagTab != null) {
             log.info("Redrawing panel with \"{}\" tag", activeTagTab.getTag());
@@ -98,33 +101,37 @@ public class RuneSharePluginPanel extends PluginPanel {
 
             containerPanel.add(activeTagPanel);
 
-            if (activeLayout != null) {
-                final JButton syncButton = new JButton();
-                syncButton.setText("Sync to RuneShare");
-                syncButton.addActionListener((event) -> {
-                    RuneShareBankTab runeShareBankTab = new RuneShareBankTab();
-                    runeShareBankTab.setTag(activeTagTab.getTag());
-                    runeShareBankTab.setIconRunescapeItemId(Integer.toString(activeTagTab.getIconItemId()));
+            final JButton syncButton = new JButton();
+            syncButton.setText("Sync to RuneShare");
+            syncButton.addActionListener((event) -> {
+                RuneShareBankTab runeShareBankTab = new RuneShareBankTab();
+                runeShareBankTab.setTag(activeTagTab.getTag());
+                runeShareBankTab.setIconRunescapeItemId(Integer.toString(activeTagTab.getIconItemId()));
 
-                    List<RuneShareBankTabItem> runeShareBankTabItems = new ArrayList<>();
-                    runeShareBankTab.setItems(runeShareBankTabItems);
+                List<RuneShareBankTabItem> runeShareBankTabItems = new ArrayList<>();
+                runeShareBankTab.setItems(runeShareBankTabItems);
 
-                    int[] runescapeItemIds = activeLayout.getLayout();
-                    for (int position = 0; position < runescapeItemIds.length; position++) {
-                        int runescapeItemId = runescapeItemIds[position];
-                        if (runescapeItemId >= 0) {
-                            RuneShareBankTabItem runeShareBankTabItem = new RuneShareBankTabItem();
-                            runeShareBankTabItem.setPosition(position);
-                            runeShareBankTabItem.setRunescapeItemId(Integer.toString(runescapeItemId));
-                            runeShareBankTabItems.add(runeShareBankTabItem);
-                        }
+                final int[] runescapeItemIds;
+                if (activeLayout != null) {
+                    runescapeItemIds = activeLayout.getLayout();
+                } else {
+                    runescapeItemIds = activeItemIds.stream().mapToInt(i->i).toArray();
+                }
+
+                for (int position = 0; position < runescapeItemIds.length; position++) {
+                    int runescapeItemId = runescapeItemIds[position];
+                    if (runescapeItemId >= 0) {
+                        RuneShareBankTabItem runeShareBankTabItem = new RuneShareBankTabItem();
+                        runeShareBankTabItem.setPosition(position);
+                        runeShareBankTabItem.setRunescapeItemId(Integer.toString(runescapeItemId));
+                        runeShareBankTabItems.add(runeShareBankTabItem);
                     }
+                }
 
-                    new RuneShareApi(runeShareConfig.apiToken()).createRuneShareBankTab(runeShareBankTab);
-                });
+                new RuneShareApi(runeShareConfig.apiToken()).createRuneShareBankTab(runeShareBankTab);
+            });
 
-                containerPanel.add(syncButton);
-            }
+            containerPanel.add(syncButton);
         }
 
         removeAll();

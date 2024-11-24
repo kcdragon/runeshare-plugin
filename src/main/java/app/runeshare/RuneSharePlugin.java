@@ -14,6 +14,7 @@ import net.runelite.client.plugins.PluginDependency;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.banktags.BankTagsPlugin;
 import net.runelite.client.plugins.banktags.BankTagsService;
+import net.runelite.client.plugins.banktags.TagManager;
 import net.runelite.client.plugins.banktags.tabs.Layout;
 import net.runelite.client.plugins.banktags.tabs.TabManager;
 import net.runelite.client.plugins.banktags.tabs.TagTab;
@@ -23,6 +24,8 @@ import net.runelite.client.util.ImageUtil;
 
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @PluginDescriptor(
@@ -49,6 +52,9 @@ public class RuneSharePlugin extends Plugin
 	private TabManager tabManager;
 
 	@Inject
+	private TagManager tagManager;
+
+	@Inject
 	private BankTagsService bankTagsService;
 
 	private RuneSharePluginPanel panel;
@@ -58,6 +64,8 @@ public class RuneSharePlugin extends Plugin
 	private String activeTag = null;
 
 	private Layout activeLayout = null;
+
+	private List<Integer> activeItemIds = null;
 
 	@Override
 	protected void startUp() throws Exception
@@ -86,30 +94,36 @@ public class RuneSharePlugin extends Plugin
 	public void onGameTick(GameTick gameTick)
 	{
 		String tag = bankTagsService.getActiveTag();
+		List<Integer> itemIds = tagManager.getItemsForTag(tag);
 		Layout layout = bankTagsService.getActiveLayout();
 
 		boolean hasTagChanged = tag != null && !tag.equals(this.activeTag);
+		boolean hasItemIdsChanged = activeItemIds != null && !itemIds.equals(activeItemIds);
 		boolean hasLayoutChanged = layout != null && activeLayout != null && !Arrays.equals(layout.getLayout(), activeLayout.getLayout());
 
-		if (hasTagChanged || hasLayoutChanged) {
+		if (hasTagChanged || hasItemIdsChanged || hasLayoutChanged) {
+			List<Integer> items = tagManager.getItemsForTag(tag);
+
 			this.activeTag = tag;
 			this.activeLayout = layout;
+			this.activeItemIds = itemIds;
 
 			log.info("Active tag has changed to \"{}\"", this.activeTag);
 
 			TagTab activeTagTab = tabManager.find(this.activeTag);
 
 			clientThread.invokeLater(() -> {
-				this.panel.updateActiveTag(activeTagTab, activeLayout);
+				this.panel.updateActiveTag(activeTagTab, activeItemIds, activeLayout);
 			});
 		} else if (tag == null && this.activeTag != null) {
 			this.activeTag = null;
+			this.activeItemIds = null;
 			this.activeLayout = null;
 
 			log.info("There is no longer an active tag");
 
 			clientThread.invokeLater(() -> {
-				this.panel.updateActiveTag(null, null);
+				this.panel.updateActiveTag(null, null, null);
 			});
 		}
 	}
