@@ -1,5 +1,6 @@
 package app.runeshare;
 
+import app.runeshare.api.RuneShareApi;
 import app.runeshare.ui.RuneSharePluginPanel;
 import com.google.inject.Provides;
 import javax.inject.Inject;
@@ -46,7 +47,7 @@ public class RuneSharePlugin extends Plugin
 	private ClientThread clientThread;
 
 	@Inject
-	private RuneShareConfig config;
+	private RuneShareConfig runeShareConfig;
 
 	@Inject
 	private TabManager tabManager;
@@ -56,6 +57,9 @@ public class RuneSharePlugin extends Plugin
 
 	@Inject
 	private BankTagsService bankTagsService;
+
+	@Inject
+	private RuneShareTabManager runeShareTabManager;
 
 	private RuneSharePluginPanel panel;
 
@@ -70,7 +74,7 @@ public class RuneSharePlugin extends Plugin
 	@Override
 	protected void startUp() throws Exception
 	{
-		this.panel = new RuneSharePluginPanel(this.config);
+		this.panel = new RuneSharePluginPanel(this.runeShareConfig);
 
 		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/icon.png");
 
@@ -102,8 +106,6 @@ public class RuneSharePlugin extends Plugin
 		boolean hasLayoutChanged = layout != null && activeLayout != null && !Arrays.equals(layout.getLayout(), activeLayout.getLayout());
 
 		if (hasTagChanged || hasItemIdsChanged || hasLayoutChanged) {
-			List<Integer> items = tagManager.getItemsForTag(tag);
-
 			this.activeTag = tag;
 			this.activeLayout = layout;
 			this.activeItemIds = itemIds;
@@ -113,6 +115,12 @@ public class RuneSharePlugin extends Plugin
 			TagTab activeTagTab = tabManager.find(this.activeTag);
 
 			clientThread.invokeLater(() -> {
+				if (runeShareConfig.autoSave()) {
+					log.info("Automatically saving bank tab to RuneShare.");
+					RuneShareApi runeShareApi = new RuneShareApi(runeShareConfig.apiToken());
+					runeShareApi.createRuneShareBankTab(activeTagTab, activeItemIds, activeLayout);
+				}
+
 				this.panel.updateActiveTag(activeTagTab, activeItemIds, activeLayout);
 			});
 		} else if (tag == null && this.activeTag != null) {

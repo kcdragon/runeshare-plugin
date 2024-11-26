@@ -13,4 +13,11 @@ public interface RuneShareConfig extends Config
 			description = "API token for your RuneShare account."
 	)
 	String apiToken();
+
+	@ConfigItem(
+			keyName = "autoSave",
+			name = "Auto Save?",
+			description = "If checked, changes to Bank Tag Tabs will automatically be saved in RuneShare."
+	)
+	boolean autoSave();
 }

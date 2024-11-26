@@ -2,8 +2,6 @@ package app.runeshare.ui;
 
 import app.runeshare.RuneShareConfig;
 import app.runeshare.api.RuneShareApi;
-import app.runeshare.api.RuneShareBankTab;
-import app.runeshare.api.RuneShareBankTabItem;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.plugins.banktags.tabs.Layout;
@@ -17,7 +15,6 @@ import javax.swing.border.EmptyBorder;
 import java.awt.Color;
 import java.awt.BorderLayout;
 import java.awt.GridLayout;
-import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -101,37 +98,26 @@ public class RuneSharePluginPanel extends PluginPanel {
 
             containerPanel.add(activeTagPanel);
 
-            final JButton syncButton = new JButton();
-            syncButton.setText("Sync to RuneShare");
-            syncButton.addActionListener((event) -> {
-                RuneShareBankTab runeShareBankTab = new RuneShareBankTab();
-                runeShareBankTab.setTag(activeTagTab.getTag());
-                runeShareBankTab.setIconRunescapeItemId(Integer.toString(activeTagTab.getIconItemId()));
-
-                List<RuneShareBankTabItem> runeShareBankTabItems = new ArrayList<>();
-                runeShareBankTab.setItems(runeShareBankTabItems);
-
-                final int[] runescapeItemIds;
-                if (activeLayout != null) {
-                    runescapeItemIds = activeLayout.getLayout();
-                } else {
-                    runescapeItemIds = activeItemIds.stream().mapToInt(i->i).toArray();
-                }
-
-                for (int position = 0; position < runescapeItemIds.length; position++) {
-                    int runescapeItemId = runescapeItemIds[position];
-                    if (runescapeItemId >= 0) {
-                        RuneShareBankTabItem runeShareBankTabItem = new RuneShareBankTabItem();
-                        runeShareBankTabItem.setPosition(position);
-                        runeShareBankTabItem.setRunescapeItemId(Integer.toString(runescapeItemId));
-                        runeShareBankTabItems.add(runeShareBankTabItem);
-                    }
-                }
-
-                new RuneShareApi(runeShareConfig.apiToken()).createRuneShareBankTab(runeShareBankTab);
-            });
-
-            containerPanel.add(syncButton);
+            if (runeShareConfig.autoSave()) {
+                final JTextPane noSyncNeededPane = new JTextPane();
+                noSyncNeededPane.setEditable(false);
+                noSyncNeededPane.setFocusable(false);
+                noSyncNeededPane.setOpaque(false);
+                noSyncNeededPane.setLayout(new BorderLayout());
+                noSyncNeededPane.setAlignmentX(SwingConstants.LEFT);
+                noSyncNeededPane.setAlignmentY(SwingConstants.TOP);
+                noSyncNeededPane.setText("Active tags are being saved automatically to RuneShare.");
+                noSyncNeededPane.setForeground(Color.WHITE);
+                containerPanel.add(noSyncNeededPane);
+            } else {
+                final JButton syncButton = new JButton();
+                syncButton.setText("Sync to RuneShare");
+                syncButton.addActionListener((event) -> {
+                    RuneShareApi runeShareApi = new RuneShareApi(runeShareConfig.apiToken());
+                    runeShareApi.createRuneShareBankTab(activeTagTab, activeItemIds, activeLayout);
+                });
+                containerPanel.add(syncButton);
+            }
         }
 
         removeAll();
