@@ -58,9 +58,6 @@ public class RuneSharePlugin extends Plugin
 	@Inject
 	private BankTagsService bankTagsService;
 
-	@Inject
-	private RuneShareTabManager runeShareTabManager;
-
 	private RuneSharePluginPanel panel;
 
 	private NavigationButton navigationButton;
