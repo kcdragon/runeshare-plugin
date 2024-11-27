@@ -26,7 +26,6 @@ import net.runelite.client.util.ImageUtil;
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Slf4j
 @PluginDescriptor(
