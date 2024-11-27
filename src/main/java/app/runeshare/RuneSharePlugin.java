@@ -107,7 +107,7 @@ public class RuneSharePlugin extends Plugin
 			this.activeLayout = layout;
 			this.activeItemIds = itemIds;
 
-			log.info("Active tag has changed to \"{}\"", this.activeTag);
+			log.debug("Active tag has changed to \"{}\"", this.activeTag);
 
 			TagTab activeTagTab = tabManager.find(this.activeTag);
 
@@ -125,7 +125,7 @@ public class RuneSharePlugin extends Plugin
 			this.activeItemIds = null;
 			this.activeLayout = null;
 
-			log.info("There is no longer an active tag");
+			log.debug("There is no longer an active tag");
 
 			clientThread.invokeLater(() -> {
 				this.panel.updateActiveTag(null, null, null);

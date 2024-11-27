@@ -47,9 +47,9 @@ public class RuneSharePluginPanel extends PluginPanel {
         this.activeItemIds = activeItemIds;
 
         if (activeTagTab != null) {
-            log.info("Redrawing panel with \"{}\" tag", activeTagTab.getTag());
+            log.debug("Redrawing panel with \"{}\" tag", activeTagTab.getTag());
         } else {
-            log.info("Redrawing panel without a tag");
+            log.debug("Redrawing panel without a tag");
         }
 
         drawPanel();
