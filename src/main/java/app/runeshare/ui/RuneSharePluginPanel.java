@@ -70,45 +70,33 @@ public class RuneSharePluginPanel extends PluginPanel {
         containerPanel.add(titlePanel);
 
         if (this.activeTagTab == null) {
-            final JTextPane noActiveTagPane = new JTextPane();
-            noActiveTagPane.setEditable(false);
-            noActiveTagPane.setFocusable(false);
-            noActiveTagPane.setOpaque(false);
-            noActiveTagPane.setLayout(new BorderLayout());
-            noActiveTagPane.setAlignmentX(SwingConstants.LEFT);
-            noActiveTagPane.setAlignmentY(SwingConstants.TOP);
-            noActiveTagPane.setText("There is no active tag. Please select an tag in your bank.");
-            noActiveTagPane.setForeground(Color.WHITE);
-            containerPanel.add(noActiveTagPane);
+            final JTextArea noActiveTagTextArea = new JTextArea(1, 20);
+            noActiveTagTextArea.setText("There is no active tag. Please select an tag in your bank.");
+            noActiveTagTextArea.setWrapStyleWord(true);
+            noActiveTagTextArea.setLineWrap(true);
+            noActiveTagTextArea.setOpaque(false);
+            noActiveTagTextArea.setEditable(false);
+            noActiveTagTextArea.setFocusable(false);
+            containerPanel.add(noActiveTagTextArea);
         } else {
-            final JPanel activeTagPanel = new JPanel();
-            activeTagPanel.setLayout(new GridLayout(1, 2));
-
-            final JLabel activeTagLabel = new JLabel();
-            activeTagLabel.setText("Active Tag");
-            activeTagLabel.setForeground(Color.WHITE);
-            activeTagLabel.setHorizontalAlignment(SwingConstants.LEFT);
-            activeTagPanel.add(activeTagLabel);
-
-            final JLabel activeTagText = new JLabel();
-            activeTagText.setText(this.activeTagTab.getTag());
-            activeTagText.setForeground(Color.WHITE);
-            activeTagText.setHorizontalAlignment(SwingConstants.RIGHT);
-            activeTagPanel.add(activeTagText);
-
-            containerPanel.add(activeTagPanel);
+            final JTextArea activeTagTextArea = new JTextArea(1, 20);
+            activeTagTextArea.setText("Active Tag: " + this.activeTagTab.getTag());
+            activeTagTextArea.setWrapStyleWord(true);
+            activeTagTextArea.setLineWrap(true);
+            activeTagTextArea.setOpaque(false);
+            activeTagTextArea.setEditable(false);
+            activeTagTextArea.setFocusable(false);
+            containerPanel.add(activeTagTextArea);
 
             if (runeShareConfig.autoSave()) {
-                final JTextPane noSyncNeededPane = new JTextPane();
-                noSyncNeededPane.setEditable(false);
-                noSyncNeededPane.setFocusable(false);
-                noSyncNeededPane.setOpaque(false);
-                noSyncNeededPane.setLayout(new BorderLayout());
-                noSyncNeededPane.setAlignmentX(SwingConstants.LEFT);
-                noSyncNeededPane.setAlignmentY(SwingConstants.TOP);
-                noSyncNeededPane.setText("Active tags are being saved automatically to RuneShare.");
-                noSyncNeededPane.setForeground(Color.WHITE);
-                containerPanel.add(noSyncNeededPane);
+                final JTextArea noSyncNeededTextArea = new JTextArea(1, 20);
+                noSyncNeededTextArea.setText("Active tags are being saved automatically to RuneShare.");
+                noSyncNeededTextArea.setWrapStyleWord(true);
+                noSyncNeededTextArea.setLineWrap(true);
+                noSyncNeededTextArea.setOpaque(false);
+                noSyncNeededTextArea.setEditable(false);
+                noSyncNeededTextArea.setFocusable(false);
+                containerPanel.add(noSyncNeededTextArea);
             } else {
                 final JButton syncButton = new JButton();
                 syncButton.setText("Sync to RuneShare");
