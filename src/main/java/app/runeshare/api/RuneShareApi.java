@@ -19,7 +19,7 @@ import static java.net.HttpURLConnection.HTTP_CREATED;
 
 @Slf4j
 public class RuneShareApi {
-    private static final String URL = "http://osrs.runeshare.test/api/bank_tabs";
+    private static final String URL = "https://osrs.runeshare.app/api/bank_tabs";
 
     private final String apiToken;
 
