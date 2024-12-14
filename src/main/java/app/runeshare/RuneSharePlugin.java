@@ -98,7 +98,7 @@ public class RuneSharePlugin extends Plugin
 		Layout layout = bankTagsService.getActiveLayout();
 
 		boolean hasTagChanged = tag != null && !tag.equals(this.activeTag);
-		boolean hasItemIdsChanged = activeItemIds != null && !itemIds.equals(activeItemIds);
+		boolean hasItemIdsChanged = activeItemIds != null && !itemIds.isEmpty() && !itemIds.equals(activeItemIds);
 		boolean hasLayoutChanged = layout != null && activeLayout != null && !Arrays.equals(layout.getLayout(), activeLayout.getLayout());
 
 		if (hasTagChanged || hasItemIdsChanged || hasLayoutChanged) {
