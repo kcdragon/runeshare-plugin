@@ -14,7 +14,7 @@ Create an API token [here](https://osrs.runeshare.app/api_tokens). Don't share t
 <img src="/docs/api-token-2.png" alt="API Token Step 2" height="75" />
 <img src="/docs/api-token-3.png" alt="API Token Step 3" height="75" />
 
-Copy that token into the RuneShare settings in RuneLite.
+Install the RuneShare RuneLite plugin. Copy that token into the RuneShare settings in RuneLite.
 
 <img src="/docs/runelite-api-token-setting.png" alt="Runelite API Token Setting" width="300" />
 
