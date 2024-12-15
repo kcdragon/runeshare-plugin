@@ -14,7 +14,6 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.Color;
 import java.awt.BorderLayout;
-import java.awt.GridLayout;
 import java.util.List;
 
 @Slf4j
@@ -55,6 +54,11 @@ public class RuneSharePluginPanel extends PluginPanel {
         drawPanel();
     }
 
+    public void redraw() {
+        log.debug("Redrawing panel");
+        drawPanel();
+    }
+
     private void drawPanel() {
         final JPanel containerPanel = new JPanel();
         containerPanel.setLayout(new BoxLayout(containerPanel, BoxLayout.Y_AXIS));
@@ -69,7 +73,19 @@ public class RuneSharePluginPanel extends PluginPanel {
         titlePanel.add(title, BorderLayout.WEST);
         containerPanel.add(titlePanel);
 
-        if (this.activeTagTab == null) {
+        final String apiToken = runeShareConfig.apiToken();
+        final boolean noApiTokenConfigured = apiToken == null || apiToken.isEmpty();
+        if (noApiTokenConfigured) {
+            final JTextArea noApiTokenConfiguredTextArea = new JTextArea(1, 20);
+            noApiTokenConfiguredTextArea.setText("There is no API token configured. Please add this to the RuneShare plugin settings.");
+            noApiTokenConfiguredTextArea.setWrapStyleWord(true);
+            noApiTokenConfiguredTextArea.setLineWrap(true);
+            noApiTokenConfiguredTextArea.setOpaque(false);
+            noApiTokenConfiguredTextArea.setEditable(false);
+            noApiTokenConfiguredTextArea.setFocusable(false);
+            containerPanel.add(noApiTokenConfiguredTextArea);
+
+        } else if (this.activeTagTab == null) {
             final JTextArea noActiveTagTextArea = new JTextArea(1, 20);
             noActiveTagTextArea.setText("There is no active tag. Please select an tag in your bank.");
             noActiveTagTextArea.setWrapStyleWord(true);
@@ -101,7 +117,7 @@ public class RuneSharePluginPanel extends PluginPanel {
                 final JButton syncButton = new JButton();
                 syncButton.setText("Sync to RuneShare");
                 syncButton.addActionListener((event) -> {
-                    RuneShareApi runeShareApi = new RuneShareApi(runeShareConfig.apiToken());
+                    RuneShareApi runeShareApi = new RuneShareApi(apiToken);
                     runeShareApi.createRuneShareBankTab(activeTagTab, activeItemIds, activeLayout);
                 });
                 containerPanel.add(syncButton);
