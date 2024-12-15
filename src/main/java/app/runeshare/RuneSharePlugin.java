@@ -25,6 +25,7 @@ import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.util.ImageUtil;
 
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -110,12 +111,22 @@ public class RuneSharePlugin extends Plugin
 
 		boolean hasTagChanged = tag != null && !tag.equals(this.activeTag);
 		boolean hasItemIdsChanged = activeItemIds != null && !itemIds.isEmpty() && !itemIds.equals(activeItemIds);
-		boolean hasLayoutChanged = layout != null && activeLayout != null && !Arrays.equals(layout.getLayout(), activeLayout.getLayout());
+		boolean hasLayoutChanged = (layout != null && activeLayout == null) || (layout == null && activeLayout != null) || (layout != null && activeLayout != null && !Arrays.equals(layout.getLayout(), activeLayout.getLayout()));
 
 		if (hasTagChanged || hasItemIdsChanged || hasLayoutChanged) {
 			this.activeTag = tag;
-			this.activeLayout = layout;
-			this.activeItemIds = itemIds;
+
+			if (itemIds != null) {
+				this.activeItemIds = new ArrayList<>(itemIds);
+			} else {
+				this.activeItemIds = null;
+			}
+
+			if (layout != null) {
+				this.activeLayout = new Layout(layout);
+			} else {
+				this.activeLayout = null;
+			}
 
 			log.debug("Active tag has changed to \"{}\"", this.activeTag);
 
