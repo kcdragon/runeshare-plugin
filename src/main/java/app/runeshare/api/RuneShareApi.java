@@ -24,6 +24,8 @@ public class RuneShareApi {
 
     private final String apiToken;
 
+    private final Gson gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).create();
+
     public RuneShareApi(@NonNull final String apiToken) {
         this.apiToken = apiToken;
     }
@@ -57,10 +59,6 @@ public class RuneShareApi {
     }
 
     private void createRuneShareBankTab(final RuneShareBankTab runeShareBankTab) {
-        final Gson gson = new GsonBuilder()
-                .setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
-                .create();
-
         final HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(URL))
                 .header("Authorization", "Token token=" + this.apiToken)
