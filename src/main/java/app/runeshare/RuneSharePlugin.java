@@ -2,6 +2,7 @@ package app.runeshare;
 
 import app.runeshare.api.RuneShareApi;
 import app.runeshare.ui.RuneSharePluginPanel;
+import com.google.gson.Gson;
 import com.google.inject.Provides;
 import javax.inject.Inject;
 
@@ -59,6 +60,9 @@ public class RuneSharePlugin extends Plugin
 	@Inject
 	private BankTagsService bankTagsService;
 
+	@Inject
+	private Gson gson;
+
 	private RuneSharePluginPanel panel;
 
 	private NavigationButton navigationButton;
@@ -72,7 +76,7 @@ public class RuneSharePlugin extends Plugin
 	@Override
 	protected void startUp() throws Exception
 	{
-		this.panel = new RuneSharePluginPanel(this.runeShareConfig);
+		this.panel = new RuneSharePluginPanel(runeShareConfig, gson);
 
 		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/icon.png");
 
@@ -136,7 +140,7 @@ public class RuneSharePlugin extends Plugin
 				final String apiToken = runeShareConfig.apiToken();
 				if (apiToken != null && !apiToken.isEmpty() && runeShareConfig.autoSave()) {
 					log.info("Automatically saving bank tab to RuneShare.");
-					RuneShareApi runeShareApi = new RuneShareApi(runeShareConfig.apiToken());
+					RuneShareApi runeShareApi = new RuneShareApi(runeShareConfig.apiToken(), gson);
 					runeShareApi.createRuneShareBankTab(activeTagTab, activeItemIds, activeLayout);
 				}
 

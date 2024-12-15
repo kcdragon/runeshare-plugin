@@ -2,6 +2,7 @@ package app.runeshare.ui;
 
 import app.runeshare.RuneShareConfig;
 import app.runeshare.api.RuneShareApi;
+import com.google.gson.Gson;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.plugins.banktags.tabs.Layout;
@@ -23,16 +24,20 @@ public class RuneSharePluginPanel extends PluginPanel {
     @NonNull
     private final RuneShareConfig runeShareConfig;
 
+    @NonNull
+    private final Gson gson;
+
     private TagTab activeTagTab = null;
 
     private List<Integer> activeItemIds = null;
 
     private Layout activeLayout = null;
 
-    public RuneSharePluginPanel(@NonNull RuneShareConfig runeShareConfig) {
+    public RuneSharePluginPanel(@NonNull RuneShareConfig runeShareConfig, @NonNull Gson gson) {
         super(false);
 
         this.runeShareConfig = runeShareConfig;
+        this.gson = gson;
 
         setBackground(ColorScheme.DARK_GRAY_COLOR);
         setLayout(new BorderLayout());
@@ -117,7 +122,7 @@ public class RuneSharePluginPanel extends PluginPanel {
                 final JButton syncButton = new JButton();
                 syncButton.setText("Sync to RuneShare");
                 syncButton.addActionListener((event) -> {
-                    RuneShareApi runeShareApi = new RuneShareApi(apiToken);
+                    RuneShareApi runeShareApi = new RuneShareApi(apiToken, gson);
                     runeShareApi.createRuneShareBankTab(activeTagTab, activeItemIds, activeLayout);
                 });
                 containerPanel.add(syncButton);

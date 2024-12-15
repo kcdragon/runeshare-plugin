@@ -24,10 +24,11 @@ public class RuneShareApi {
 
     private final String apiToken;
 
-    private final Gson gson = new GsonBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).create();
+    private final Gson gson;
 
-    public RuneShareApi(@NonNull final String apiToken) {
+    public RuneShareApi(@NonNull final String apiToken, @NonNull final Gson gson) {
         this.apiToken = apiToken;
+        this.gson = gson.newBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).create();
     }
 
     public void createRuneShareBankTab(final TagTab tagTab, final List<Integer> itemIds, final Layout layout) {
