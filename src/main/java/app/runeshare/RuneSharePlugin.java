@@ -111,7 +111,8 @@ public class RuneSharePlugin extends Plugin
 			TagTab activeTagTab = tabManager.find(this.activeTag);
 
 			clientThread.invokeLater(() -> {
-				if (runeShareConfig.autoSave()) {
+				final String apiToken = runeShareConfig.apiToken();
+				if (apiToken != null && !apiToken.isEmpty() && runeShareConfig.autoSave()) {
 					log.info("Automatically saving bank tab to RuneShare.");
 					RuneShareApi runeShareApi = new RuneShareApi(runeShareConfig.apiToken());
 					runeShareApi.createRuneShareBankTab(activeTagTab, activeItemIds, activeLayout);

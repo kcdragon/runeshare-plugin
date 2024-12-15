@@ -3,6 +3,7 @@ package app.runeshare.api;
 import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.plugins.banktags.tabs.Layout;
 import net.runelite.client.plugins.banktags.tabs.TagTab;
@@ -23,7 +24,7 @@ public class RuneShareApi {
 
     private final String apiToken;
 
-    public RuneShareApi(final String apiToken) {
+    public RuneShareApi(@NonNull final String apiToken) {
         this.apiToken = apiToken;
     }
 
