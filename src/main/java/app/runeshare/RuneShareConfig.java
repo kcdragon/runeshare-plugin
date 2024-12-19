@@ -17,12 +17,12 @@ public interface RuneShareConfig extends Config
 			name = "API Token",
 			description = "Your unique API token for your RuneShare account. Go to https://osrs.runeshare.app/api_tokens to create one."
 	)
-	String apiToken();
+	default String apiToken() { return null; }
 
 	@ConfigItem(
 			keyName = "autoSave",
 			name = "Auto Save?",
 			description = "If checked, changes to Bank Tag Tabs will automatically be saved in RuneShare."
 	)
-	boolean autoSave();
+	default boolean autoSave() { return true; }
 }
