@@ -24,5 +24,5 @@ public interface RuneShareConfig extends Config
 			name = "Auto Save?",
 			description = "If checked, changes to Bank Tag Tabs will automatically be saved in RuneShare."
 	)
-	default boolean autoSave() { return true; }
+	default boolean autoSave() { return false; }
 }
