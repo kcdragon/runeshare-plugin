@@ -4,10 +4,10 @@ import app.runeshare.api.RuneShareApi;
 import app.runeshare.ui.RuneSharePluginPanel;
 import com.google.inject.Provides;
 import javax.inject.Inject;
+import javax.swing.*;
 
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.events.GameTick;
-import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
@@ -43,9 +43,6 @@ public class RuneSharePlugin extends Plugin
 
 	@Inject
 	private ClientToolbar clientToolbar;
-
-	@Inject
-	private ClientThread clientThread;
 
 	@Inject
 	private RuneShareConfig runeShareConfig;
@@ -99,7 +96,7 @@ public class RuneSharePlugin extends Plugin
 	public void onConfigChanged(ConfigChanged event)
 	{
 		if (event.getGroup().equals(RuneShareConfig.CONFIG_GROUP)) {
-			clientThread.invokeLater(() -> {
+			SwingUtilities.invokeLater(() -> {
 				this.panel.redraw();
 			});
 		}
@@ -135,7 +132,7 @@ public class RuneSharePlugin extends Plugin
 
 			TagTab activeTagTab = tabManager.find(this.activeTag);
 
-			clientThread.invokeLater(() -> {
+			SwingUtilities.invokeLater(() -> {
 				final String apiToken = runeShareConfig.apiToken();
 				if (apiToken != null && !apiToken.isEmpty() && runeShareConfig.autoSave()) {
 					log.info("Automatically saving bank tab to RuneShare.");
@@ -151,7 +148,7 @@ public class RuneSharePlugin extends Plugin
 
 			log.debug("There is no longer an active tag");
 
-			clientThread.invokeLater(() -> {
+			SwingUtilities.invokeLater(() -> {
 				this.panel.updateActiveTag(null, null, null);
 			});
 		}
