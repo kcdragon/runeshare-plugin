@@ -1,9 +1,11 @@
 package app.runeshare.ui;
 
 import app.runeshare.RuneShareConfig;
-import app.runeshare.api.RuneShareApi;
+import app.runeshare.RuneShareSessionTracker;
+import app.runeshare.api.*;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.NPC;
 import net.runelite.client.plugins.banktags.tabs.Layout;
 import net.runelite.client.plugins.banktags.tabs.TagTab;
 import net.runelite.client.ui.ColorScheme;
@@ -26,17 +28,25 @@ public class RuneSharePluginPanel extends PluginPanel {
     @NonNull
     private final RuneShareApi runeShareApi;
 
+    @NonNull
+    private final RuneShareSessionTracker runeShareSessionTracker;
+
     private TagTab activeTagTab = null;
 
     private List<Integer> activeItemIds = null;
 
     private Layout activeLayout = null;
 
-    public RuneSharePluginPanel(@NonNull RuneShareConfig runeShareConfig, @NonNull RuneShareApi runeShareApi) {
+    private NPC activeNpc = null;
+
+    private Integer activeTaskSessionId = null;
+
+    public RuneSharePluginPanel(@NonNull RuneShareConfig runeShareConfig, @NonNull RuneShareApi runeShareApi, @NonNull RuneShareSessionTracker runeShareSessionTracker) {
         super(false);
 
         this.runeShareConfig = runeShareConfig;
         this.runeShareApi = runeShareApi;
+        this.runeShareSessionTracker = runeShareSessionTracker;
 
         setBackground(ColorScheme.DARK_GRAY_COLOR);
         setLayout(new BorderLayout());
@@ -56,6 +66,14 @@ public class RuneSharePluginPanel extends PluginPanel {
         }
 
         drawPanel();
+    }
+
+    public void updateNpc(NPC npc) {
+        if (this.activeNpc != npc) {
+            this.activeNpc = npc;
+
+            drawPanel();
+        }
     }
 
     public void redraw() {
@@ -127,8 +145,38 @@ public class RuneSharePluginPanel extends PluginPanel {
             }
         }
 
+        if (!noApiTokenConfigured && activeNpc != null) {
+            if (activeTaskSessionId == null) {
+                final JButton startSessionButton = new JButton("Start Session");
+                startSessionButton.addActionListener((event) -> {
+                    runeShareSessionTracker.start(activeNpc, startTaskSessionResponse -> {
+                        this.activeTaskSessionId = startTaskSessionResponse.getTaskSessionId();
+                        this.redraw();
+                    });
+                });
+                containerPanel.add(startSessionButton);
+            } else {
+                final JButton stopSessionButton = new JButton("Stop Session");
+                stopSessionButton.addActionListener((event) -> {
+                    runeShareSessionTracker.stop(() -> {
+                        this.activeTaskSessionId = null;
+                        this.redraw();
+                    });
+                });
+                containerPanel.add(stopSessionButton);
+            }
+        } else if (!noApiTokenConfigured) {
+            final JTextArea notFightingAnNpcTextArea = new JTextArea(1, 20);
+            notFightingAnNpcTextArea.setText("Start fighting an NPC to start tracking.");
+            notFightingAnNpcTextArea.setWrapStyleWord(true);
+            notFightingAnNpcTextArea.setLineWrap(true);
+            notFightingAnNpcTextArea.setOpaque(false);
+            notFightingAnNpcTextArea.setEditable(false);
+            notFightingAnNpcTextArea.setFocusable(false);
+            containerPanel.add(notFightingAnNpcTextArea);
+        }
+
         removeAll();
         add(containerPanel, BorderLayout.NORTH);
-        revalidate();
     }
 }

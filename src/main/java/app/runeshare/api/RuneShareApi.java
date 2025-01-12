@@ -15,11 +15,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static java.net.HttpURLConnection.HTTP_CREATED;
+import static java.net.HttpURLConnection.HTTP_OK;
 
 @Slf4j
 @Singleton
 public class RuneShareApi {
-    private static final String URL = "https://osrs.runeshare.app/api/bank_tabs";
+    private static final String RUNESHARE_HOST = "https://osrs.runeshare.app";
+    private static final String BANK_TABS_PATH = "/api/bank_tabs";
 
     @Inject
     private OkHttpClient okHttpClient;
@@ -58,11 +60,112 @@ public class RuneShareApi {
         createRuneShareBankTab(runeShareBankTab);
     }
 
+    public void startTaskSession(final StartTaskSession startTaskSession, final StartTaskSessionResponseHandler startTaskSessionResponseHandler) {
+        final Gson runeshareGson = gson.newBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).create();
+
+        final Request request = new Request.Builder()
+                .url(RUNESHARE_HOST + "/api/task_sessions")
+                .header("Authorization", "Token token=" + getApiToken())
+                .header("Accept", "application/json")
+                .post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), runeshareGson.toJson(startTaskSession)))
+                .build();
+
+        okHttpClient.newCall(request).enqueue(new Callback()
+        {
+            @Override
+            public void onFailure(Call call, IOException e)
+            {
+                log.warn("Failed to start task session in RuneShare.", e);
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) {
+                String responseBody = null;
+                try {
+                    responseBody = response.body().string();
+                } catch (IOException e) {
+                    log.warn("Failed to parse 'start task session' response. Response Status code is {}. Response Body is {}", response.code(), responseBody);
+                }
+
+                if (response.code() == HTTP_CREATED && responseBody != null) {
+                    log.debug("Successfully started task session in RuneShare. Response Body is {}.", responseBody);
+
+                    StartTaskSessionResponse startTaskSessionResponse = runeshareGson.fromJson(responseBody, StartTaskSessionResponse.class);
+                    startTaskSessionResponseHandler.onSuccess(startTaskSessionResponse);
+                } else {
+                    log.warn("Failed to start task session in RuneShare. Response Status code is {}. Response Body is {}", response.code(), responseBody);
+                }
+                response.close();
+            }
+        });
+    }
+
+    public void stopTaskSession(final StopTaskSession stopTaskSession, final StopTaskSessionResponseHandler stopTaskSessionResponseHandler) {
+        final Request request = new Request.Builder()
+                .url(RUNESHARE_HOST + "/api/task_sessions/" + stopTaskSession.getTaskSessionId())
+                .header("Authorization", "Token token=" + getApiToken())
+                .header("Accept", "application/json")
+                .method("PUT", RequestBody.create(null, ""))
+                .build();
+
+        okHttpClient.newCall(request).enqueue(new Callback()
+        {
+            @Override
+            public void onFailure(Call call, IOException e)
+            {
+                log.warn("Failed to stop task session in RuneShare.", e);
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) {
+                if (response.code() == HTTP_OK) {
+                    log.debug("Successfully stopped task session in RuneShare.");
+
+                    stopTaskSessionResponseHandler.onSuccess();
+                } else {
+                    log.warn("Failed to stop task session in RuneShare. Response Status code is {}. Response Body is {}", response.code(), response.body());
+                }
+                response.close();
+            }
+        });
+    }
+
+    public void createTaskEvent(final RuneShareTaskEvent runeShareTaskEvent) {
+        final Gson runeshareGson = gson.newBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).create();
+
+        final Request request = new Request.Builder()
+                .url(RUNESHARE_HOST + "/api/task_sessions/" + runeShareTaskEvent.getTaskSessionId() + "/task_events")
+                .header("Authorization", "Token token=" + getApiToken())
+                .header("Accept", "application/json")
+                .post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), runeshareGson.toJson(runeShareTaskEvent)))
+                .build();
+
+        okHttpClient.newCall(request).enqueue(new Callback()
+        {
+            @Override
+            public void onFailure(Call call, IOException e)
+            {
+                log.warn("Failed to create task event in RuneShare.", e);
+            }
+
+            @Override
+            public void onResponse(Call call, Response response)
+            {
+                if (response.code() == HTTP_CREATED) {
+                    log.debug("Successfully created task event in RuneShare.");
+                } else {
+                    log.warn("Failed to create task event in RuneShare. Response Status code is {}. Response Body is {}", response.code(), response.body());
+                }
+                response.close();
+            }
+        });
+    }
+
     private void createRuneShareBankTab(final RuneShareBankTab runeShareBankTab) {
         final Gson runeshareGson = gson.newBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).create();
 
         final Request request = new Request.Builder()
-                .url(URL)
+                .url(RUNESHARE_HOST + BANK_TABS_PATH)
                 .header("Authorization", "Token token=" + getApiToken())
                 .header("Accept", "application/json")
                 .post(RequestBody.create(MediaType.parse("application/json; charset=utf-8"), runeshareGson.toJson(runeShareBankTab)))
@@ -80,7 +183,7 @@ public class RuneShareApi {
             public void onResponse(Call call, Response response)
             {
                 if (response.code() == HTTP_CREATED) {
-                    log.info("Successfully updated bank tab in RuneShare.");
+                    log.debug("Successfully updated bank tab in RuneShare.");
                 } else {
                     log.warn("Failed to update bank tab. Response Status code is {}. Response Body is {}", response.code(), response.body());
                 }

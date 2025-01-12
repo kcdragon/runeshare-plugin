@@ -1,13 +1,15 @@
 package app.runeshare;
 
 import app.runeshare.api.RuneShareApi;
+import app.runeshare.api.RuneShareTaskEvent;
 import app.runeshare.ui.RuneSharePluginPanel;
 import com.google.inject.Provides;
 import javax.inject.Inject;
 import javax.swing.*;
 
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.events.GameTick;
+import net.runelite.api.*;
+import net.runelite.api.events.*;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
@@ -20,6 +22,8 @@ import net.runelite.client.plugins.banktags.TagManager;
 import net.runelite.client.plugins.banktags.tabs.Layout;
 import net.runelite.client.plugins.banktags.tabs.TabManager;
 import net.runelite.client.plugins.banktags.tabs.TagTab;
+import net.runelite.client.plugins.xptracker.XpTrackerPlugin;
+import net.runelite.client.plugins.xptracker.XpTrackerService;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.util.ImageUtil;
@@ -36,10 +40,15 @@ import java.util.List;
 	tags = { "gear", "inventory", "setups" }
 )
 @PluginDependency(BankTagsPlugin.class)
+@PluginDependency(XpTrackerPlugin.class)
 public class RuneSharePlugin extends Plugin
 {
 	private static final int NAVIGATION_PRIORITY = 100;
 	private static final String PLUGIN_NAME = "RuneShare";
+	private static final long TIME_BETWEEN_TASK_EVENTS_MS = 30 * 1000;
+
+	@Inject
+	private Client client;
 
 	@Inject
 	private ClientToolbar clientToolbar;
@@ -59,6 +68,9 @@ public class RuneSharePlugin extends Plugin
 	@Inject
 	private RuneShareApi runeShareApi;
 
+	@Inject
+	private XpTrackerService xpTrackerService;
+
 	private RuneSharePluginPanel panel;
 
 	private NavigationButton navigationButton;
@@ -69,10 +81,15 @@ public class RuneSharePlugin extends Plugin
 
 	private List<Integer> activeItemIds = null;
 
+	private RuneShareSessionTracker runeShareSessionTracker = null;
+
+	private Long lastTaskEventSentAtMs = null;
+
 	@Override
 	protected void startUp() throws Exception
 	{
-		this.panel = new RuneSharePluginPanel(runeShareConfig, runeShareApi);
+		this.runeShareSessionTracker = new RuneShareSessionTracker(runeShareApi);
+		this.panel = new RuneSharePluginPanel(runeShareConfig, runeShareApi, runeShareSessionTracker);
 
 		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/icon.png");
 
@@ -99,6 +116,44 @@ public class RuneSharePlugin extends Plugin
 			SwingUtilities.invokeLater(() -> {
 				this.panel.redraw();
 			});
+		}
+	}
+
+	@Subscribe
+	public void onHitsplatApplied(HitsplatApplied hitsplatApplied)
+	{
+		Actor actor = hitsplatApplied.getActor();
+		if (!(actor instanceof NPC))
+		{
+			return;
+		}
+
+		final Hitsplat hitsplat = hitsplatApplied.getHitsplat();
+		final NPC npc = (NPC) actor;
+
+		boolean weAreAttacking = hitsplat.isMine();
+		if (weAreAttacking)
+		{
+			log.debug("You are attacking {}", npc.getName());
+
+			this.panel.updateNpc(npc);
+
+			long currentTimeInMs = System.currentTimeMillis();
+			if (runeShareSessionTracker.isRunning() && (lastTaskEventSentAtMs == null || lastTaskEventSentAtMs + TIME_BETWEEN_TASK_EVENTS_MS < currentTimeInMs)) {
+				final int attackXp = client.getSkillExperience(Skill.ATTACK);
+				final int strengthXp = client.getSkillExperience(Skill.STRENGTH);
+				final int defenceXp = client.getSkillExperience(Skill.DEFENCE);
+				final int rangedXp = client.getSkillExperience(Skill.RANGED);
+				final int magicXp = client.getSkillExperience(Skill.MAGIC);
+				final int hitpointsXp = client.getSkillExperience(Skill.HITPOINTS);
+				final int slayerXp = client.getSkillExperience(Skill.SLAYER);
+
+				SwingUtilities.invokeLater(() -> {
+					runeShareSessionTracker.updateXp(attackXp, strengthXp, defenceXp, rangedXp, magicXp, hitpointsXp, slayerXp);
+				});
+
+				lastTaskEventSentAtMs = currentTimeInMs;
+			}
 		}
 	}
 
