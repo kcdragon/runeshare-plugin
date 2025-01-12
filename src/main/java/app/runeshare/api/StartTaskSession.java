@@ -9,4 +9,6 @@ import lombok.Setter;
 @Builder
 public class StartTaskSession {
     private int npcRunescapeId;
+    private boolean leagues;
+    private String accountType;
 }

@@ -31,6 +31,7 @@ import net.runelite.client.util.ImageUtil;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.List;
 
 @Slf4j
@@ -116,6 +117,15 @@ public class RuneSharePlugin extends Plugin
 			SwingUtilities.invokeLater(() -> {
 				this.panel.redraw();
 			});
+		}
+	}
+
+	@Subscribe
+	public void onWorldChanged(WorldChanged event)
+	{
+		if (runeShareSessionTracker != null) {
+			runeShareSessionTracker.setAccountType(getAccountType());
+			runeShareSessionTracker.setWorldTypes(client.getWorldType());
 		}
 	}
 
@@ -213,5 +223,26 @@ public class RuneSharePlugin extends Plugin
 	RuneShareConfig provideConfig(ConfigManager configManager)
 	{
 		return configManager.getConfig(RuneShareConfig.class);
+	}
+
+	private String getAccountType() {
+		int accountTypeId = client.getVarbitValue(Varbits.ACCOUNT_TYPE);
+		String accountType = null;
+		if (accountTypeId == 0) {
+			accountType = "normal";
+		} else if (accountTypeId == 1) {
+			accountType = "ironman";
+		} else if (accountTypeId == 2) {
+			accountType = "ultimate_ironman";
+		} else if (accountTypeId == 3) {
+			accountType = "hardcore_ironman";
+		} else if (accountTypeId == 4) {
+			accountType = "group_ironman";
+		} else if (accountTypeId == 5) {
+			accountType = "hardcore_group_ironman";
+		} else if (accountTypeId == 6) {
+			accountType = "unranked_group_ironman";
+		}
+		return accountType;
 	}
 }

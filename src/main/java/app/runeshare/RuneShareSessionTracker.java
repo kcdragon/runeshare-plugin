@@ -3,8 +3,12 @@ package app.runeshare;
 import app.runeshare.api.*;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.NPC;
+import net.runelite.api.WorldType;
+
+import java.util.EnumSet;
 
 @Slf4j
 public class RuneShareSessionTracker {
@@ -17,13 +21,18 @@ public class RuneShareSessionTracker {
 
     private Integer taskSessionId = null;
 
+    @Setter
+    private EnumSet<WorldType> worldTypes = null;
+
+    @Setter
+    private String accountType = null;
+
     public RuneShareSessionTracker(RuneShareApi runeShareApi) {
         this.runeShareApi = runeShareApi;
     }
 
     public void start(NPC npc, StartTaskSessionResponseHandler startTaskSessionResponseHandler) {
-        StartTaskSession startTaskSession = StartTaskSession.builder().npcRunescapeId(npc.getId()).build();
-        runeShareApi.startTaskSession(startTaskSession, startTaskSessionResponse -> {
+        runeShareApi.startTaskSession(npc, accountType, isLeaguesWorld(), startTaskSessionResponse -> {
             this.running = true;
             this.taskSessionId = startTaskSessionResponse.getTaskSessionId();
             startTaskSessionResponseHandler.onSuccess(startTaskSessionResponse);
@@ -56,5 +65,10 @@ public class RuneShareSessionTracker {
         final StopTaskSession stopTaskSession = StopTaskSession.builder().taskSessionId(this.taskSessionId).build();
         runeShareApi.stopTaskSession(stopTaskSession, stopTaskSessionResponseHandler);
         this.taskSessionId = null;
+    }
+
+    private boolean isLeaguesWorld()
+    {
+        return (worldTypes.contains(WorldType.SEASONAL) && !worldTypes.contains(WorldType.DEADMAN));
     }
 }
