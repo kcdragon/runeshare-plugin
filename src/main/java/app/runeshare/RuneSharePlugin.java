@@ -171,21 +171,32 @@ public class RuneSharePlugin extends Plugin
 	public void onGameTick(GameTick gameTick)
 	{
 		String tag = bankTagsService.getActiveTag();
+
+		if (tag == null) {
+			if (this.activeTag != null) {
+				this.activeTag = null;
+				this.activeItemIds = null;
+				this.activeLayout = null;
+
+				log.debug("There is no longer an active tag");
+
+				SwingUtilities.invokeLater(() -> {
+					this.panel.updateActiveTag(null, null, null);
+				});
+			}
+			return;
+		}
+
 		List<Integer> itemIds = tagManager.getItemsForTag(tag);
 		Layout layout = bankTagsService.getActiveLayout();
 
-		boolean hasTagChanged = tag != null && !tag.equals(this.activeTag);
+		boolean hasTagChanged = !tag.equals(this.activeTag);
 		boolean hasItemIdsChanged = activeItemIds != null && !itemIds.isEmpty() && !itemIds.equals(activeItemIds);
 		boolean hasLayoutChanged = (layout != null && activeLayout == null) || (layout == null && activeLayout != null) || (layout != null && activeLayout != null && !Arrays.equals(layout.getLayout(), activeLayout.getLayout()));
 
 		if (hasTagChanged || hasItemIdsChanged || hasLayoutChanged) {
 			this.activeTag = tag;
-
-			if (itemIds != null) {
-				this.activeItemIds = new ArrayList<>(itemIds);
-			} else {
-				this.activeItemIds = null;
-			}
+			this.activeItemIds = new ArrayList<>(itemIds);
 
 			if (layout != null) {
 				this.activeLayout = new Layout(layout);
@@ -196,25 +207,17 @@ public class RuneSharePlugin extends Plugin
 			log.debug("Active tag has changed to \"{}\"", this.activeTag);
 
 			TagTab activeTagTab = tabManager.find(this.activeTag);
+			final List<Integer> itemIdsCopy = this.activeItemIds;
+			final Layout layoutCopy = this.activeLayout;
 
 			SwingUtilities.invokeLater(() -> {
 				final String apiToken = runeShareConfig.apiToken();
-				if (apiToken != null && !apiToken.isEmpty() && runeShareConfig.autoSave()) {
+				if (activeTagTab != null && apiToken != null && !apiToken.isEmpty() && runeShareConfig.autoSave()) {
 					log.info("Automatically saving bank tab to RuneShare.");
-					runeShareApi.createRuneShareBankTab(activeTagTab, activeItemIds, activeLayout);
+					runeShareApi.createRuneShareBankTab(activeTagTab, itemIdsCopy, layoutCopy);
 				}
 
-				this.panel.updateActiveTag(activeTagTab, activeItemIds, activeLayout);
-			});
-		} else if (tag == null && this.activeTag != null) {
-			this.activeTag = null;
-			this.activeItemIds = null;
-			this.activeLayout = null;
-
-			log.debug("There is no longer an active tag");
-
-			SwingUtilities.invokeLater(() -> {
-				this.panel.updateActiveTag(null, null, null);
+				this.panel.updateActiveTag(activeTagTab, itemIdsCopy, layoutCopy);
 			});
 		}
 	}

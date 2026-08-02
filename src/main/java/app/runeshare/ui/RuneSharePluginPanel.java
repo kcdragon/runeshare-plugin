@@ -42,7 +42,7 @@ public class RuneSharePluginPanel extends PluginPanel {
     private Integer activeTaskSessionId = null;
 
     public RuneSharePluginPanel(@NonNull RuneShareConfig runeShareConfig, @NonNull RuneShareApi runeShareApi, @NonNull RuneShareSessionTracker runeShareSessionTracker) {
-        super(false);
+        super(true);
 
         this.runeShareConfig = runeShareConfig;
         this.runeShareApi = runeShareApi;
@@ -55,6 +55,11 @@ public class RuneSharePluginPanel extends PluginPanel {
     }
 
     public void updateActiveTag(@Nullable TagTab activeTagTab, @Nullable List<Integer> activeItemIds, @Nullable Layout activeLayout) {
+        if (!SwingUtilities.isEventDispatchThread()) {
+            SwingUtilities.invokeLater(() -> updateActiveTag(activeTagTab, activeItemIds, activeLayout));
+            return;
+        }
+
         this.activeTagTab = activeTagTab;
         this.activeLayout = activeLayout;
         this.activeItemIds = activeItemIds;
@@ -69,6 +74,11 @@ public class RuneSharePluginPanel extends PluginPanel {
     }
 
     public void updateNpc(NPC npc) {
+        if (!SwingUtilities.isEventDispatchThread()) {
+            SwingUtilities.invokeLater(() -> updateNpc(npc));
+            return;
+        }
+
         if (this.activeNpc != npc) {
             this.activeNpc = npc;
 
@@ -77,6 +87,11 @@ public class RuneSharePluginPanel extends PluginPanel {
     }
 
     public void redraw() {
+        if (!SwingUtilities.isEventDispatchThread()) {
+            SwingUtilities.invokeLater(this::redraw);
+            return;
+        }
+
         log.debug("Redrawing panel");
         drawPanel();
     }
@@ -178,5 +193,7 @@ public class RuneSharePluginPanel extends PluginPanel {
 
         removeAll();
         add(containerPanel, BorderLayout.NORTH);
+        revalidate();
+        repaint();
     }
 }
