@@ -4,7 +4,6 @@ import app.runeshare.RuneShareConfig;
 import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.NPC;
 import net.runelite.client.plugins.banktags.tabs.Layout;
 import net.runelite.client.plugins.banktags.tabs.TagTab;
 import okhttp3.*;
@@ -22,6 +21,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 @Singleton
 public class RuneShareApi {
     private static final String RUNESHARE_HOST = "https://osrs.runeshare.app";
+//    private static final String RUNESHARE_HOST = "http://osrs.runeshare.test";
     private static final String BANK_TABS_PATH = "/api/bank_tabs";
 
     @Inject
@@ -48,6 +48,9 @@ public class RuneShareApi {
             runescapeItemIds = itemIds.stream().mapToInt(i->i).toArray();
         }
 
+        // 2024-12-29 16:36:10 EST [AWT-EventQueue-0] INFO  app.runeshare.api.RuneShareApi - itemIds = [-6099, -3853, 952, 5698, -2552, 995, 6100, 6102, -3016, 88, 13122, 10069, -88, 181, 3865, 1203, 3863, 13660, -8007, 1095, 9419, 772, -181, 1129, 2448, 28824, -21146, -10069, 837, -21166, 440, 20548, 8011, 8010, 8012, 351, 25818, 345, 8008, 8007, 8009, 335, 333, 385]
+        log.info("itemIds = {}", itemIds);
+
         for (int position = 0; position < runescapeItemIds.length; position++) {
             int runescapeItemId = runescapeItemIds[position];
             if (runescapeItemId >= 0) {
@@ -61,15 +64,8 @@ public class RuneShareApi {
         createRuneShareBankTab(runeShareBankTab);
     }
 
-    public void startTaskSession(final NPC npc, final String accountType, final boolean isLeaguesWorld, final StartTaskSessionResponseHandler startTaskSessionResponseHandler) {
+    public void startTaskSession(final StartTaskSession startTaskSession, final StartTaskSessionResponseHandler startTaskSessionResponseHandler) {
         final Gson runeshareGson = gson.newBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).create();
-
-        StartTaskSession startTaskSession = StartTaskSession
-                .builder()
-                .npcRunescapeId(npc.getId())
-                .leagues(isLeaguesWorld)
-                .accountType(accountType)
-                .build();
 
         final Request request = new Request.Builder()
                 .url(RUNESHARE_HOST + "/api/task_sessions")

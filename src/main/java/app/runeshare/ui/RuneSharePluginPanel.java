@@ -39,6 +39,10 @@ public class RuneSharePluginPanel extends PluginPanel {
 
     private NPC activeNpc = null;
 
+    private Integer activeWorldMapXCoordinate = null;
+
+    private Integer activeWorldMapYCoordinate = null;
+
     private Integer activeTaskSessionId = null;
 
     public RuneSharePluginPanel(@NonNull RuneShareConfig runeShareConfig, @NonNull RuneShareApi runeShareApi, @NonNull RuneShareSessionTracker runeShareSessionTracker) {
@@ -73,14 +77,16 @@ public class RuneSharePluginPanel extends PluginPanel {
         drawPanel();
     }
 
-    public void updateNpc(NPC npc) {
+    public void updateNpc(NPC npc, int x, int y) {
         if (!SwingUtilities.isEventDispatchThread()) {
-            SwingUtilities.invokeLater(() -> updateNpc(npc));
+            SwingUtilities.invokeLater(() -> updateNpc(npc, x, y));
             return;
         }
 
         if (this.activeNpc != npc) {
             this.activeNpc = npc;
+            this.activeWorldMapXCoordinate = x;
+            this.activeWorldMapYCoordinate = y;
 
             drawPanel();
         }
@@ -164,7 +170,14 @@ public class RuneSharePluginPanel extends PluginPanel {
             if (activeTaskSessionId == null) {
                 final JButton startSessionButton = new JButton("Start Session");
                 startSessionButton.addActionListener((event) -> {
-                    runeShareSessionTracker.start(activeNpc, startTaskSessionResponse -> {
+                    final StartTaskSession startTaskSession = StartTaskSession
+                            .builder()
+                            .npcRunescapeId(activeNpc.getId())
+                            .worldMapXCoordinate(activeWorldMapXCoordinate)
+                            .worldMapYCoordinate(activeWorldMapYCoordinate)
+                            .build();
+
+                    runeShareSessionTracker.start(startTaskSession, startTaskSessionResponse -> {
                         this.activeTaskSessionId = startTaskSessionResponse.getTaskSessionId();
                         this.redraw();
                     });

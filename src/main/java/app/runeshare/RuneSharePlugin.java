@@ -1,7 +1,6 @@
 package app.runeshare;
 
 import app.runeshare.api.RuneShareApi;
-import app.runeshare.api.RuneShareTaskEvent;
 import app.runeshare.ui.RuneSharePluginPanel;
 import com.google.inject.Provides;
 import javax.inject.Inject;
@@ -9,6 +8,7 @@ import javax.swing.*;
 
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
+import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.*;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
@@ -31,7 +31,6 @@ import net.runelite.client.util.ImageUtil;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.EnumSet;
 import java.util.List;
 
 @Slf4j
@@ -89,7 +88,10 @@ public class RuneSharePlugin extends Plugin
 	@Override
 	protected void startUp() throws Exception
 	{
-		this.runeShareSessionTracker = new RuneShareSessionTracker(runeShareApi);
+		runeShareSessionTracker = new RuneShareSessionTracker(runeShareApi);
+		runeShareSessionTracker.setAccountType(getAccountType());
+		runeShareSessionTracker.setWorldTypes(client.getWorldType());
+
 		this.panel = new RuneSharePluginPanel(runeShareConfig, runeShareApi, runeShareSessionTracker);
 
 		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/icon.png");
@@ -146,7 +148,16 @@ public class RuneSharePlugin extends Plugin
 		{
 			log.debug("You are attacking {}", npc.getName());
 
-			this.panel.updateNpc(npc);
+			final WorldPoint localWorld = WorldPoint.getMirrorPoint(client.getLocalPlayer().getWorldLocation(), true);
+			final int x = localWorld.getX();
+			final int y = localWorld.getY();
+
+			// 2025-01-13 00:27:09 EST [Client] DEBUG app.runeshare.RuneSharePlugin - You are attacking Mutated Bloodveld
+			// 2025-01-13 00:27:09 EST [Client] DEBUG app.runeshare.RuneSharePlugin - Your location is 1692, 10016
+
+			log.debug("Your location is {}, {}", x, y);
+
+			this.panel.updateNpc(npc, x, y);
 
 			long currentTimeInMs = System.currentTimeMillis();
 			if (runeShareSessionTracker.isRunning() && (lastTaskEventSentAtMs == null || lastTaskEventSentAtMs + TIME_BETWEEN_TASK_EVENTS_MS < currentTimeInMs)) {

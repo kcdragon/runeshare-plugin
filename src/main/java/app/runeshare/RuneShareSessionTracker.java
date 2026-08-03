@@ -31,8 +31,10 @@ public class RuneShareSessionTracker {
         this.runeShareApi = runeShareApi;
     }
 
-    public void start(NPC npc, StartTaskSessionResponseHandler startTaskSessionResponseHandler) {
-        runeShareApi.startTaskSession(npc, accountType, isLeaguesWorld(), startTaskSessionResponse -> {
+    public void start(final StartTaskSession startTaskSession, final StartTaskSessionResponseHandler startTaskSessionResponseHandler) {
+        startTaskSession.setAccountType(accountType);
+        startTaskSession.setLeagues(isLeaguesWorld());
+        runeShareApi.startTaskSession(startTaskSession, startTaskSessionResponse -> {
             this.running = true;
             this.taskSessionId = startTaskSessionResponse.getTaskSessionId();
             startTaskSessionResponseHandler.onSuccess(startTaskSessionResponse);

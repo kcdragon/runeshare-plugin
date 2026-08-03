@@ -11,4 +11,6 @@ public class StartTaskSession {
     private int npcRunescapeId;
     private boolean leagues;
     private String accountType;
+    private Integer worldMapXCoordinate;
+    private Integer worldMapYCoordinate;
 }
