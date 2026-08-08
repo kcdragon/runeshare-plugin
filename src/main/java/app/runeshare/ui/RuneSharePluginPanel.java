@@ -16,6 +16,7 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.Color;
 import java.awt.BorderLayout;
+import java.awt.Dimension;
 import java.util.List;
 
 @Slf4j
@@ -102,6 +103,16 @@ public class RuneSharePluginPanel extends PluginPanel {
         drawPanel();
     }
 
+    /**
+     * BoxLayout positions children by their alignmentX, and JButton defaults to
+     * centered while text components default to left. Pin the button to the full
+     * panel width so its label is never truncated, and center it explicitly.
+     */
+    private void centerButton(JButton button) {
+        button.setAlignmentX(CENTER_ALIGNMENT);
+        button.setMaximumSize(new Dimension(Integer.MAX_VALUE, button.getPreferredSize().height));
+    }
+
     private void drawPanel() {
         final JPanel containerPanel = new JPanel();
         containerPanel.setLayout(new BoxLayout(containerPanel, BoxLayout.Y_AXIS));
@@ -114,6 +125,7 @@ public class RuneSharePluginPanel extends PluginPanel {
         title.setText(MAIN_TITLE);
         title.setForeground(Color.WHITE);
         titlePanel.add(title, BorderLayout.WEST);
+        titlePanel.setAlignmentX(LEFT_ALIGNMENT);
         containerPanel.add(titlePanel);
 
         final String apiToken = runeShareConfig.apiToken();
@@ -126,6 +138,7 @@ public class RuneSharePluginPanel extends PluginPanel {
             noApiTokenConfiguredTextArea.setOpaque(false);
             noApiTokenConfiguredTextArea.setEditable(false);
             noApiTokenConfiguredTextArea.setFocusable(false);
+            noApiTokenConfiguredTextArea.setAlignmentX(LEFT_ALIGNMENT);
             containerPanel.add(noApiTokenConfiguredTextArea);
 
         } else if (this.activeTagTab == null) {
@@ -136,6 +149,7 @@ public class RuneSharePluginPanel extends PluginPanel {
             noActiveTagTextArea.setOpaque(false);
             noActiveTagTextArea.setEditable(false);
             noActiveTagTextArea.setFocusable(false);
+            noActiveTagTextArea.setAlignmentX(LEFT_ALIGNMENT);
             containerPanel.add(noActiveTagTextArea);
         } else {
             final JTextArea activeTagTextArea = new JTextArea(1, 20);
@@ -145,6 +159,7 @@ public class RuneSharePluginPanel extends PluginPanel {
             activeTagTextArea.setOpaque(false);
             activeTagTextArea.setEditable(false);
             activeTagTextArea.setFocusable(false);
+            activeTagTextArea.setAlignmentX(LEFT_ALIGNMENT);
             containerPanel.add(activeTagTextArea);
 
             if (runeShareConfig.autoSave()) {
@@ -155,6 +170,7 @@ public class RuneSharePluginPanel extends PluginPanel {
                 noSyncNeededTextArea.setOpaque(false);
                 noSyncNeededTextArea.setEditable(false);
                 noSyncNeededTextArea.setFocusable(false);
+                noSyncNeededTextArea.setAlignmentX(LEFT_ALIGNMENT);
                 containerPanel.add(noSyncNeededTextArea);
             } else {
                 final JButton syncButton = new JButton();
@@ -162,6 +178,7 @@ public class RuneSharePluginPanel extends PluginPanel {
                 syncButton.addActionListener((event) -> {
                     runeShareApi.createRuneShareBankTab(activeTagTab, activeItemIds, activeLayout);
                 });
+                centerButton(syncButton);
                 containerPanel.add(syncButton);
             }
         }
@@ -182,6 +199,7 @@ public class RuneSharePluginPanel extends PluginPanel {
                         this.redraw();
                     });
                 });
+                centerButton(startSessionButton);
                 containerPanel.add(startSessionButton);
             } else {
                 final JButton stopSessionButton = new JButton("Stop Session");
@@ -191,6 +209,7 @@ public class RuneSharePluginPanel extends PluginPanel {
                         this.redraw();
                     });
                 });
+                centerButton(stopSessionButton);
                 containerPanel.add(stopSessionButton);
             }
         } else if (!noApiTokenConfigured) {
@@ -201,6 +220,7 @@ public class RuneSharePluginPanel extends PluginPanel {
             notFightingAnNpcTextArea.setOpaque(false);
             notFightingAnNpcTextArea.setEditable(false);
             notFightingAnNpcTextArea.setFocusable(false);
+            notFightingAnNpcTextArea.setAlignmentX(LEFT_ALIGNMENT);
             containerPanel.add(notFightingAnNpcTextArea);
         }
 
