@@ -168,14 +168,13 @@ public class RuneSharePlugin extends Plugin
 		{
 			log.debug("You are attacking {}", npc.getName());
 
-			final WorldPoint localWorld = WorldPoint.getMirrorPoint(client.getLocalPlayer().getWorldLocation(), true);
-			final int x = localWorld.getX();
-			final int y = localWorld.getY();
-
-			// 2025-01-13 00:27:09 EST [Client] DEBUG app.runeshare.RuneSharePlugin - You are attacking Mutated Bloodveld
-			// 2025-01-13 00:27:09 EST [Client] DEBUG app.runeshare.RuneSharePlugin - Your location is 1692, 10016
-
-			log.debug("Your location is {}, {}", x, y);
+			// The location is best effort: the player, or their location, can be
+			// absent, and the session is still worth tracking without coordinates.
+			final Player localPlayer = client.getLocalPlayer();
+			final WorldPoint playerLocation = localPlayer == null ? null : localPlayer.getWorldLocation();
+			final WorldPoint localWorld = playerLocation == null ? null : WorldPoint.getMirrorPoint(playerLocation, true);
+			final Integer x = localWorld == null ? null : localWorld.getX();
+			final Integer y = localWorld == null ? null : localWorld.getY();
 
 			this.panel.updateNpc(npc, x, y);
 

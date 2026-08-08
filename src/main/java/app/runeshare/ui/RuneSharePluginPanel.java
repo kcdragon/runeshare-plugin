@@ -77,7 +77,7 @@ public class RuneSharePluginPanel extends PluginPanel {
         drawPanel();
     }
 
-    public void updateNpc(NPC npc, int x, int y) {
+    public void updateNpc(NPC npc, @Nullable Integer x, @Nullable Integer y) {
         if (!SwingUtilities.isEventDispatchThread()) {
             SwingUtilities.invokeLater(() -> updateNpc(npc, x, y));
             return;
