@@ -71,6 +71,13 @@ public class RuneShareSessionTracker {
 
     private boolean isLeaguesWorld()
     {
+        // worldTypes is populated from the client thread, which may not have run
+        // yet when a session is started.
+        if (worldTypes == null)
+        {
+            return false;
+        }
+
         return (worldTypes.contains(WorldType.SEASONAL) && !worldTypes.contains(WorldType.DEADMAN));
     }
 }

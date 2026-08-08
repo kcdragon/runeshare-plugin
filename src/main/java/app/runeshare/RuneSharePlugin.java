@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.*;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
@@ -51,6 +52,9 @@ public class RuneSharePlugin extends Plugin
 	private Client client;
 
 	@Inject
+	private ClientThread clientThread;
+
+	@Inject
 	private ClientToolbar clientToolbar;
 
 	@Inject
@@ -89,8 +93,20 @@ public class RuneSharePlugin extends Plugin
 	protected void startUp() throws Exception
 	{
 		runeShareSessionTracker = new RuneShareSessionTracker(runeShareApi);
-		runeShareSessionTracker.setAccountType(getAccountType());
-		runeShareSessionTracker.setWorldTypes(client.getWorldType());
+
+		// startUp runs on the EDT when the plugin is toggled on, but reading the
+		// account type varbit asserts it is on the client thread. Returning false
+		// re-queues this for the next tick, so it retries until we are logged in
+		// and the varbit and world type are actually meaningful.
+		clientThread.invokeLater(() -> {
+			if (client.getGameState() != GameState.LOGGED_IN)
+			{
+				return false;
+			}
+
+			updateAccountAndWorld();
+			return true;
+		});
 
 		this.panel = new RuneSharePluginPanel(runeShareConfig, runeShareApi, runeShareSessionTracker);
 
@@ -109,7 +125,12 @@ public class RuneSharePlugin extends Plugin
 	@Override
 	protected void shutDown() throws Exception
 	{
-		clientToolbar.removeNavigation(navigationButton);
+		// shutDown still runs if startUp threw before the button was built.
+		if (navigationButton != null)
+		{
+			clientToolbar.removeNavigation(navigationButton);
+			navigationButton = null;
+		}
 	}
 
 	@Subscribe
@@ -126,8 +147,7 @@ public class RuneSharePlugin extends Plugin
 	public void onWorldChanged(WorldChanged event)
 	{
 		if (runeShareSessionTracker != null) {
-			runeShareSessionTracker.setAccountType(getAccountType());
-			runeShareSessionTracker.setWorldTypes(client.getWorldType());
+			updateAccountAndWorld();
 		}
 	}
 
@@ -237,6 +257,11 @@ public class RuneSharePlugin extends Plugin
 	RuneShareConfig provideConfig(ConfigManager configManager)
 	{
 		return configManager.getConfig(RuneShareConfig.class);
+	}
+
+	private void updateAccountAndWorld() {
+		runeShareSessionTracker.setAccountType(getAccountType());
+		runeShareSessionTracker.setWorldTypes(client.getWorldType());
 	}
 
 	private String getAccountType() {
