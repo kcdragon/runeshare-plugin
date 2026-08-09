@@ -101,6 +101,20 @@ public class RuneSharePluginPanel extends PluginPanel {
         }
     }
 
+    /**
+     * Forgets any location captured before the player opted out of sharing it.
+     * The panel never renders the coordinates, so there is nothing to redraw.
+     */
+    public void clearLocation() {
+        if (!SwingUtilities.isEventDispatchThread()) {
+            SwingUtilities.invokeLater(this::clearLocation);
+            return;
+        }
+
+        this.activeWorldMapXCoordinate = null;
+        this.activeWorldMapYCoordinate = null;
+    }
+
     public void redraw() {
         if (!SwingUtilities.isEventDispatchThread()) {
             SwingUtilities.invokeLater(this::redraw);

@@ -25,4 +25,11 @@ public interface RuneShareConfig extends Config
 			description = "If checked, changes to Bank Tag Tabs will automatically be saved in RuneShare."
 	)
 	default boolean autoSave() { return false; }
+
+	@ConfigItem(
+			keyName = "shareLocation",
+			name = "Share Location?",
+			description = "If checked, the world map location where a task session started will be shared with RuneShare."
+	)
+	default boolean shareLocation() { return true; }
 }

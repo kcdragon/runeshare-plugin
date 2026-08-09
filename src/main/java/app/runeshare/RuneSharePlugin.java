@@ -137,7 +137,13 @@ public class RuneSharePlugin extends Plugin
 	public void onConfigChanged(ConfigChanged event)
 	{
 		if (event.getGroup().equals(RuneShareConfig.CONFIG_GROUP)) {
+			final boolean shareLocation = runeShareConfig.shareLocation();
 			SwingUtilities.invokeLater(() -> {
+				// Coordinates are only refreshed when the NPC changes, so drop any
+				// that were cached before the player opted out.
+				if (!shareLocation) {
+					this.panel.clearLocation();
+				}
 				this.panel.redraw();
 			});
 		}
@@ -170,11 +176,18 @@ public class RuneSharePlugin extends Plugin
 
 			// The location is best effort: the player, or their location, can be
 			// absent, and the session is still worth tracking without coordinates.
-			final Player localPlayer = client.getLocalPlayer();
-			final WorldPoint playerLocation = localPlayer == null ? null : localPlayer.getWorldLocation();
-			final WorldPoint localWorld = playerLocation == null ? null : WorldPoint.getMirrorPoint(playerLocation, true);
-			final Integer x = localWorld == null ? null : localWorld.getX();
-			final Integer y = localWorld == null ? null : localWorld.getY();
+			// Players can also opt out of sharing it entirely, in which case we
+			// never read it in the first place.
+			Integer x = null;
+			Integer y = null;
+			if (runeShareConfig.shareLocation())
+			{
+				final Player localPlayer = client.getLocalPlayer();
+				final WorldPoint playerLocation = localPlayer == null ? null : localPlayer.getWorldLocation();
+				final WorldPoint localWorld = playerLocation == null ? null : WorldPoint.getMirrorPoint(playerLocation, true);
+				x = localWorld == null ? null : localWorld.getX();
+				y = localWorld == null ? null : localWorld.getY();
+			}
 
 			this.panel.updateNpc(npc, x, y);
 
