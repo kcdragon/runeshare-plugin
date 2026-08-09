@@ -9,19 +9,27 @@ import net.runelite.api.NPC;
 import net.runelite.client.plugins.banktags.tabs.Layout;
 import net.runelite.client.plugins.banktags.tabs.TagTab;
 import net.runelite.client.ui.ColorScheme;
+import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.PluginPanel;
 
 import javax.annotation.Nullable;
 import javax.swing.*;
+import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
+import javax.swing.border.MatteBorder;
 import java.awt.Color;
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.util.List;
 
 @Slf4j
 public class RuneSharePluginPanel extends PluginPanel {
     private static final String MAIN_TITLE = "RuneShare";
+
+    private static final String BANK_TABS_TITLE = "Bank Tabs";
+
+    private static final String TASK_SESSIONS_TITLE = "Task Sessions";
 
     @NonNull
     private final RuneShareConfig runeShareConfig;
@@ -104,13 +112,59 @@ public class RuneSharePluginPanel extends PluginPanel {
     }
 
     /**
-     * BoxLayout positions children by their alignmentX, and JButton defaults to
-     * centered while text components default to left. Pin the button to the full
-     * panel width so its label is never truncated, and center it explicitly.
+     * A section heading, styled like the ones RuneLite uses for config sections:
+     * bold orange text above a divider line.
      */
-    private void centerButton(JButton button) {
-        button.setAlignmentX(CENTER_ALIGNMENT);
-        button.setMaximumSize(new Dimension(Integer.MAX_VALUE, button.getPreferredSize().height));
+    private JPanel createSectionHeader(String text) {
+        final JLabel label = new JLabel(text);
+        label.setForeground(ColorScheme.BRAND_ORANGE);
+        label.setFont(FontManager.getRunescapeBoldFont());
+
+        final JPanel header = new JPanel(new BorderLayout());
+        header.setBorder(new CompoundBorder(
+                new MatteBorder(0, 0, 1, 0, ColorScheme.MEDIUM_GRAY_COLOR),
+                new EmptyBorder(0, 0, 3, 0)));
+        header.add(label, BorderLayout.WEST);
+        fullWidth(header);
+
+        return header;
+    }
+
+    /**
+     * The panel's read-only body text. JTextArea rather than JLabel so that long
+     * messages wrap to the panel width instead of being clipped.
+     * <p>
+     * Deliberately not passed through {@link #fullWidth}: a wrapping text area's
+     * preferred height depends on the width it ends up with, so pinning its
+     * maximum height to the value known at build time would cut off the later
+     * lines of a message that wraps. It stretches to the panel width on its own,
+     * so it only needs the alignment.
+     */
+    private JTextArea createBodyText(String text) {
+        final JTextArea textArea = new JTextArea(text);
+        textArea.setWrapStyleWord(true);
+        textArea.setLineWrap(true);
+        textArea.setOpaque(false);
+        textArea.setEditable(false);
+        textArea.setFocusable(false);
+        textArea.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        return textArea;
+    }
+
+    /**
+     * Stretch a component across the panel.
+     * <p>
+     * BoxLayout lays children out at their preferred width and then aligns them
+     * against each other by alignmentX, so a narrow child sits inset from the
+     * panel edge rather than flush against it, no matter what alignment it is
+     * given. Letting each child grow to the full width removes the difference
+     * the alignment would otherwise be resolving, which left-aligns the text and
+     * lets a button's label use the whole width instead of truncating.
+     */
+    private void fullWidth(JComponent component) {
+        component.setAlignmentX(Component.LEFT_ALIGNMENT);
+        component.setMaximumSize(new Dimension(Integer.MAX_VALUE, component.getPreferredSize().height));
     }
 
     private void drawPanel() {
@@ -119,111 +173,96 @@ public class RuneSharePluginPanel extends PluginPanel {
         containerPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
         containerPanel.setVisible(true);
 
-        final JPanel titlePanel = new JPanel();
-        titlePanel.setLayout(new BorderLayout());
-        final JLabel title = new JLabel();
-        title.setText(MAIN_TITLE);
+        final JLabel title = new JLabel(MAIN_TITLE);
         title.setForeground(Color.WHITE);
-        titlePanel.add(title, BorderLayout.WEST);
-        titlePanel.setAlignmentX(LEFT_ALIGNMENT);
-        containerPanel.add(titlePanel);
+        title.setFont(FontManager.getRunescapeBoldFont());
+        fullWidth(title);
+        containerPanel.add(title);
 
         final String apiToken = runeShareConfig.apiToken();
         final boolean noApiTokenConfigured = apiToken == null || apiToken.isEmpty();
         if (noApiTokenConfigured) {
-            final JTextArea noApiTokenConfiguredTextArea = new JTextArea(1, 20);
-            noApiTokenConfiguredTextArea.setText("There is no API token configured. Please add this to the RuneShare plugin settings.");
-            noApiTokenConfiguredTextArea.setWrapStyleWord(true);
-            noApiTokenConfiguredTextArea.setLineWrap(true);
-            noApiTokenConfiguredTextArea.setOpaque(false);
-            noApiTokenConfiguredTextArea.setEditable(false);
-            noApiTokenConfiguredTextArea.setFocusable(false);
-            noApiTokenConfiguredTextArea.setAlignmentX(LEFT_ALIGNMENT);
-            containerPanel.add(noApiTokenConfiguredTextArea);
+            containerPanel.add(Box.createVerticalStrut(10));
+            containerPanel.add(createBodyText("There is no API token configured. Please add this to the RuneShare plugin settings."));
 
-        } else if (this.activeTagTab == null) {
-            final JTextArea noActiveTagTextArea = new JTextArea(1, 20);
-            noActiveTagTextArea.setText("There is no active tag. Please select an tag in your bank.");
-            noActiveTagTextArea.setWrapStyleWord(true);
-            noActiveTagTextArea.setLineWrap(true);
-            noActiveTagTextArea.setOpaque(false);
-            noActiveTagTextArea.setEditable(false);
-            noActiveTagTextArea.setFocusable(false);
-            noActiveTagTextArea.setAlignmentX(LEFT_ALIGNMENT);
-            containerPanel.add(noActiveTagTextArea);
+            finishPanel(containerPanel);
+            return;
+        }
+
+        containerPanel.add(Box.createVerticalStrut(12));
+        containerPanel.add(createSectionHeader(BANK_TABS_TITLE));
+        containerPanel.add(Box.createVerticalStrut(6));
+        addBankTabsSection(containerPanel);
+
+        containerPanel.add(Box.createVerticalStrut(16));
+        containerPanel.add(createSectionHeader(TASK_SESSIONS_TITLE));
+        containerPanel.add(Box.createVerticalStrut(6));
+        addTaskSessionsSection(containerPanel);
+
+        finishPanel(containerPanel);
+    }
+
+    private void addBankTabsSection(JPanel containerPanel) {
+        if (this.activeTagTab == null) {
+            containerPanel.add(createBodyText("There is no active tag. Please select an tag in your bank."));
+            return;
+        }
+
+        containerPanel.add(createBodyText("Active Tag: " + this.activeTagTab.getTag()));
+
+        if (runeShareConfig.autoSave()) {
+            containerPanel.add(Box.createVerticalStrut(4));
+            containerPanel.add(createBodyText("Active tags are being saved automatically to RuneShare."));
+            return;
+        }
+
+        final JButton syncButton = new JButton("Sync to RuneShare");
+        syncButton.addActionListener((event) -> {
+            runeShareApi.createRuneShareBankTab(activeTagTab, activeItemIds, activeLayout);
+        });
+        fullWidth(syncButton);
+
+        containerPanel.add(Box.createVerticalStrut(6));
+        containerPanel.add(syncButton);
+    }
+
+    private void addTaskSessionsSection(JPanel containerPanel) {
+        if (activeNpc == null) {
+            containerPanel.add(createBodyText("Start fighting an NPC to start tracking."));
+            return;
+        }
+
+        if (activeTaskSessionId == null) {
+            final JButton startSessionButton = new JButton("Start Session");
+            startSessionButton.addActionListener((event) -> {
+                final StartTaskSession startTaskSession = StartTaskSession
+                        .builder()
+                        .npcRunescapeId(activeNpc.getId())
+                        .worldMapXCoordinate(activeWorldMapXCoordinate)
+                        .worldMapYCoordinate(activeWorldMapYCoordinate)
+                        .build();
+
+                runeShareSessionTracker.start(startTaskSession, startTaskSessionResponse -> {
+                    this.activeTaskSessionId = startTaskSessionResponse.getTaskSessionId();
+                    this.redraw();
+                });
+            });
+            fullWidth(startSessionButton);
+            containerPanel.add(startSessionButton);
         } else {
-            final JTextArea activeTagTextArea = new JTextArea(1, 20);
-            activeTagTextArea.setText("Active Tag: " + this.activeTagTab.getTag());
-            activeTagTextArea.setWrapStyleWord(true);
-            activeTagTextArea.setLineWrap(true);
-            activeTagTextArea.setOpaque(false);
-            activeTagTextArea.setEditable(false);
-            activeTagTextArea.setFocusable(false);
-            activeTagTextArea.setAlignmentX(LEFT_ALIGNMENT);
-            containerPanel.add(activeTagTextArea);
-
-            if (runeShareConfig.autoSave()) {
-                final JTextArea noSyncNeededTextArea = new JTextArea(1, 20);
-                noSyncNeededTextArea.setText("Active tags are being saved automatically to RuneShare.");
-                noSyncNeededTextArea.setWrapStyleWord(true);
-                noSyncNeededTextArea.setLineWrap(true);
-                noSyncNeededTextArea.setOpaque(false);
-                noSyncNeededTextArea.setEditable(false);
-                noSyncNeededTextArea.setFocusable(false);
-                noSyncNeededTextArea.setAlignmentX(LEFT_ALIGNMENT);
-                containerPanel.add(noSyncNeededTextArea);
-            } else {
-                final JButton syncButton = new JButton();
-                syncButton.setText("Sync to RuneShare");
-                syncButton.addActionListener((event) -> {
-                    runeShareApi.createRuneShareBankTab(activeTagTab, activeItemIds, activeLayout);
+            final JButton stopSessionButton = new JButton("Stop Session");
+            stopSessionButton.addActionListener((event) -> {
+                runeShareSessionTracker.stop(() -> {
+                    this.activeTaskSessionId = null;
+                    this.redraw();
                 });
-                centerButton(syncButton);
-                containerPanel.add(syncButton);
-            }
+            });
+            fullWidth(stopSessionButton);
+            containerPanel.add(stopSessionButton);
         }
+    }
 
-        if (!noApiTokenConfigured && activeNpc != null) {
-            if (activeTaskSessionId == null) {
-                final JButton startSessionButton = new JButton("Start Session");
-                startSessionButton.addActionListener((event) -> {
-                    final StartTaskSession startTaskSession = StartTaskSession
-                            .builder()
-                            .npcRunescapeId(activeNpc.getId())
-                            .worldMapXCoordinate(activeWorldMapXCoordinate)
-                            .worldMapYCoordinate(activeWorldMapYCoordinate)
-                            .build();
-
-                    runeShareSessionTracker.start(startTaskSession, startTaskSessionResponse -> {
-                        this.activeTaskSessionId = startTaskSessionResponse.getTaskSessionId();
-                        this.redraw();
-                    });
-                });
-                centerButton(startSessionButton);
-                containerPanel.add(startSessionButton);
-            } else {
-                final JButton stopSessionButton = new JButton("Stop Session");
-                stopSessionButton.addActionListener((event) -> {
-                    runeShareSessionTracker.stop(() -> {
-                        this.activeTaskSessionId = null;
-                        this.redraw();
-                    });
-                });
-                centerButton(stopSessionButton);
-                containerPanel.add(stopSessionButton);
-            }
-        } else if (!noApiTokenConfigured) {
-            final JTextArea notFightingAnNpcTextArea = new JTextArea(1, 20);
-            notFightingAnNpcTextArea.setText("Start fighting an NPC to start tracking.");
-            notFightingAnNpcTextArea.setWrapStyleWord(true);
-            notFightingAnNpcTextArea.setLineWrap(true);
-            notFightingAnNpcTextArea.setOpaque(false);
-            notFightingAnNpcTextArea.setEditable(false);
-            notFightingAnNpcTextArea.setFocusable(false);
-            notFightingAnNpcTextArea.setAlignmentX(LEFT_ALIGNMENT);
-            containerPanel.add(notFightingAnNpcTextArea);
-        }
-
+    private void finishPanel(JPanel containerPanel) {
         removeAll();
         add(containerPanel, BorderLayout.NORTH);
         revalidate();
