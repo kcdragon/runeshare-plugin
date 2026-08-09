@@ -1,7 +1,6 @@
 package app.runeshare;
 
 import app.runeshare.api.RuneShareApi;
-import app.runeshare.api.RuneShareTaskEvent;
 import app.runeshare.ui.RuneSharePluginPanel;
 import com.google.inject.Provides;
 import javax.inject.Inject;
@@ -9,7 +8,9 @@ import javax.swing.*;
 
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
+import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.*;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
@@ -31,7 +32,6 @@ import net.runelite.client.util.ImageUtil;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.EnumSet;
 import java.util.List;
 
 @Slf4j
@@ -50,6 +50,9 @@ public class RuneSharePlugin extends Plugin
 
 	@Inject
 	private Client client;
+
+	@Inject
+	private ClientThread clientThread;
 
 	@Inject
 	private ClientToolbar clientToolbar;
@@ -89,7 +92,22 @@ public class RuneSharePlugin extends Plugin
 	@Override
 	protected void startUp() throws Exception
 	{
-		this.runeShareSessionTracker = new RuneShareSessionTracker(runeShareApi);
+		runeShareSessionTracker = new RuneShareSessionTracker(runeShareApi);
+
+		// startUp runs on the EDT when the plugin is toggled on, but reading the
+		// account type varbit asserts it is on the client thread. Returning false
+		// re-queues this for the next tick, so it retries until we are logged in
+		// and the varbit and world type are actually meaningful.
+		clientThread.invokeLater(() -> {
+			if (client.getGameState() != GameState.LOGGED_IN)
+			{
+				return false;
+			}
+
+			updateAccountAndWorld();
+			return true;
+		});
+
 		this.panel = new RuneSharePluginPanel(runeShareConfig, runeShareApi, runeShareSessionTracker);
 
 		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/icon.png");
@@ -107,7 +125,12 @@ public class RuneSharePlugin extends Plugin
 	@Override
 	protected void shutDown() throws Exception
 	{
-		clientToolbar.removeNavigation(navigationButton);
+		// shutDown still runs if startUp threw before the button was built.
+		if (navigationButton != null)
+		{
+			clientToolbar.removeNavigation(navigationButton);
+			navigationButton = null;
+		}
 	}
 
 	@Subscribe
@@ -124,8 +147,7 @@ public class RuneSharePlugin extends Plugin
 	public void onWorldChanged(WorldChanged event)
 	{
 		if (runeShareSessionTracker != null) {
-			runeShareSessionTracker.setAccountType(getAccountType());
-			runeShareSessionTracker.setWorldTypes(client.getWorldType());
+			updateAccountAndWorld();
 		}
 	}
 
@@ -146,7 +168,15 @@ public class RuneSharePlugin extends Plugin
 		{
 			log.debug("You are attacking {}", npc.getName());
 
-			this.panel.updateNpc(npc);
+			// The location is best effort: the player, or their location, can be
+			// absent, and the session is still worth tracking without coordinates.
+			final Player localPlayer = client.getLocalPlayer();
+			final WorldPoint playerLocation = localPlayer == null ? null : localPlayer.getWorldLocation();
+			final WorldPoint localWorld = playerLocation == null ? null : WorldPoint.getMirrorPoint(playerLocation, true);
+			final Integer x = localWorld == null ? null : localWorld.getX();
+			final Integer y = localWorld == null ? null : localWorld.getY();
+
+			this.panel.updateNpc(npc, x, y);
 
 			long currentTimeInMs = System.currentTimeMillis();
 			if (runeShareSessionTracker.isRunning() && (lastTaskEventSentAtMs == null || lastTaskEventSentAtMs + TIME_BETWEEN_TASK_EVENTS_MS < currentTimeInMs)) {
@@ -226,6 +256,11 @@ public class RuneSharePlugin extends Plugin
 	RuneShareConfig provideConfig(ConfigManager configManager)
 	{
 		return configManager.getConfig(RuneShareConfig.class);
+	}
+
+	private void updateAccountAndWorld() {
+		runeShareSessionTracker.setAccountType(getAccountType());
+		runeShareSessionTracker.setWorldTypes(client.getWorldType());
 	}
 
 	private String getAccountType() {

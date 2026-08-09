@@ -4,7 +4,6 @@ import app.runeshare.RuneShareConfig;
 import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.NPC;
 import net.runelite.client.plugins.banktags.tabs.Layout;
 import net.runelite.client.plugins.banktags.tabs.TagTab;
 import okhttp3.*;
@@ -61,15 +60,8 @@ public class RuneShareApi {
         createRuneShareBankTab(runeShareBankTab);
     }
 
-    public void startTaskSession(final NPC npc, final String accountType, final boolean isLeaguesWorld, final StartTaskSessionResponseHandler startTaskSessionResponseHandler) {
+    public void startTaskSession(final StartTaskSession startTaskSession, final StartTaskSessionResponseHandler startTaskSessionResponseHandler) {
         final Gson runeshareGson = gson.newBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).create();
-
-        StartTaskSession startTaskSession = StartTaskSession
-                .builder()
-                .npcRunescapeId(npc.getId())
-                .leagues(isLeaguesWorld)
-                .accountType(accountType)
-                .build();
 
         final Request request = new Request.Builder()
                 .url(RUNESHARE_HOST + "/api/task_sessions")
