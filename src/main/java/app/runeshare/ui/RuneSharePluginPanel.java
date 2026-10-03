@@ -5,7 +5,6 @@ import app.runeshare.RuneShareSessionTracker;
 import app.runeshare.api.*;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.NPC;
 import net.runelite.client.plugins.banktags.tabs.Layout;
 import net.runelite.client.plugins.banktags.tabs.TagTab;
 import net.runelite.client.ui.ColorScheme;
@@ -22,6 +21,7 @@ import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.util.List;
+import java.util.Objects;
 
 @Slf4j
 public class RuneSharePluginPanel extends PluginPanel {
@@ -46,7 +46,7 @@ public class RuneSharePluginPanel extends PluginPanel {
 
     private Layout activeLayout = null;
 
-    private NPC activeNpc = null;
+    private Integer activeNpcId = null;
 
     private Integer activeWorldMapXCoordinate = null;
 
@@ -86,16 +86,18 @@ public class RuneSharePluginPanel extends PluginPanel {
         drawPanel();
     }
 
-    public void updateNpc(NPC npc, @Nullable Integer x, @Nullable Integer y) {
+    public void updateNpc(int npcId, @Nullable Integer x, @Nullable Integer y) {
         if (!SwingUtilities.isEventDispatchThread()) {
-            SwingUtilities.invokeLater(() -> updateNpc(npc, x, y));
+            SwingUtilities.invokeLater(() -> updateNpc(npcId, x, y));
             return;
         }
 
-        if (this.activeNpc != npc) {
-            this.activeNpc = npc;
-            this.activeWorldMapXCoordinate = x;
-            this.activeWorldMapYCoordinate = y;
+        this.activeWorldMapXCoordinate = x;
+        this.activeWorldMapYCoordinate = y;
+
+        // The panel doesn't show coordinates, so only a new NPC needs a redraw.
+        if (!Objects.equals(this.activeNpcId, npcId)) {
+            this.activeNpcId = npcId;
 
             drawPanel();
         }
@@ -241,7 +243,7 @@ public class RuneSharePluginPanel extends PluginPanel {
     }
 
     private void addTaskSessionsSection(JPanel containerPanel) {
-        if (activeNpc == null) {
+        if (activeNpcId == null) {
             containerPanel.add(createBodyText("Start fighting an NPC to start tracking."));
             return;
         }
@@ -251,7 +253,7 @@ public class RuneSharePluginPanel extends PluginPanel {
             startSessionButton.addActionListener((event) -> {
                 final StartTaskSession startTaskSession = StartTaskSession
                         .builder()
-                        .npcRunescapeId(activeNpc.getId())
+                        .npcRunescapeId(activeNpcId)
                         .worldMapXCoordinate(activeWorldMapXCoordinate)
                         .worldMapYCoordinate(activeWorldMapYCoordinate)
                         .build();

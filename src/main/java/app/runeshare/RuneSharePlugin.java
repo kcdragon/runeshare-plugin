@@ -151,8 +151,8 @@ public class RuneSharePlugin extends Plugin
 
 			final boolean shareLocation = runeShareConfig.shareLocation();
 			SwingUtilities.invokeLater(() -> {
-				// Coordinates are only refreshed when the NPC changes, so drop any
-				// that were cached before the player opted out.
+				// Coordinates are only refreshed on the next hit, so drop any that
+				// were cached before the player opted out.
 				if (!shareLocation) {
 					this.panel.clearLocation();
 				}
@@ -186,6 +186,11 @@ public class RuneSharePlugin extends Plugin
 		{
 			log.debug("You are attacking {}", npc.getName());
 
+			// The ID is read here, on the client thread, because NPC.getId() turns
+			// to -1 once the NPC dies or despawns, long before Start Session is clicked.
+			final int npcId = npc.getId();
+			final boolean npcHasNoDefinition = npcId == -1;
+
 			// The location is best effort: the player, or their location, can be
 			// absent, and the session is still worth tracking without coordinates.
 			// Players can also opt out of sharing it entirely, in which case we
@@ -201,7 +206,10 @@ public class RuneSharePlugin extends Plugin
 				y = localWorld == null ? null : localWorld.getY();
 			}
 
-			this.panel.updateNpc(npc, x, y);
+			if (!npcHasNoDefinition)
+			{
+				this.panel.updateNpc(npcId, x, y);
+			}
 
 			long currentTimeInMs = System.currentTimeMillis();
 			if (runeShareSessionTracker.isRunning() && (lastTaskEventSentAtMs == null || lastTaskEventSentAtMs + TIME_BETWEEN_TASK_EVENTS_MS < currentTimeInMs)) {
