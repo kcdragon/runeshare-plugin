@@ -32,6 +32,24 @@ There is no lint task and no checkstyle config. Despite the name, `RuneSharePlug
 
 `runeLiteVersion` is `latest.release`, so builds float against whatever RuneLite has most recently published. A build that compiled yesterday can break today when RuneLite changes an API — if you hit an unexpected compile error in `net.runelite.*` code you did not touch, suspect this before suspecting the local change.
 
+## Code style
+
+Prefer self-documenting code over comments. A comment that restates what the code
+does is noise that goes stale; a well-named variable or method carries the same
+information and cannot drift from the code it describes.
+
+- Extract a non-obvious condition into a named `final boolean` rather than
+  explaining it above the `if`. See `leavingCharacter` in
+  `RuneSharePlugin.onGameStateChanged`.
+- Extract a block that needs a "this part does X" comment into a method named `x`.
+- Name variables for what they hold, not their type.
+
+Write a comment only when it explains something the code genuinely cannot: a
+non-obvious *why*, an external constraint, or a trap for the next reader. The
+threading and defensive-copy notes documented below are the kind that earn their
+place — they warn about a rule that is invisible at the call site. When in doubt,
+try renaming first.
+
 ## Architecture
 
 Three layers, with the plugin class as the only thing touching RuneLite events:

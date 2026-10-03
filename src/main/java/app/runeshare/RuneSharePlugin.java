@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.events.*;
+import net.runelite.api.gameval.InventoryID;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
@@ -105,6 +106,7 @@ public class RuneSharePlugin extends Plugin
 			}
 
 			updateAccountAndWorld();
+			readLoadoutFromClient();
 			return true;
 		});
 
@@ -137,6 +139,16 @@ public class RuneSharePlugin extends Plugin
 	public void onConfigChanged(ConfigChanged event)
 	{
 		if (event.getGroup().equals(RuneShareConfig.CONFIG_GROUP)) {
+			// ConfigChanged is posted on the thread that changed the setting, the EDT for
+			// the settings panel, so reading containers has to hop to the client thread.
+			if (runeShareSessionTracker != null) {
+				if (runeShareConfig.shareLoadout()) {
+					clientThread.invokeLater(this::readLoadoutFromClient);
+				} else {
+					clearLoadout();
+				}
+			}
+
 			final boolean shareLocation = runeShareConfig.shareLocation();
 			SwingUtilities.invokeLater(() -> {
 				// Coordinates are only refreshed when the NPC changes, so drop any
@@ -211,6 +223,43 @@ public class RuneSharePlugin extends Plugin
 	}
 
 	@Subscribe
+	public void onItemContainerChanged(ItemContainerChanged itemContainerChanged)
+	{
+		if (runeShareSessionTracker == null || !runeShareConfig.shareLoadout())
+		{
+			return;
+		}
+
+		final int containerId = itemContainerChanged.getContainerId();
+		final Item[] items = itemContainerChanged.getItemContainer().getItems();
+
+		if (containerId == InventoryID.INV)
+		{
+			runeShareSessionTracker.setBackpackRunescapeItemIds(Loadout.backpackItemIds(items));
+		}
+		else if (containerId == InventoryID.WORN)
+		{
+			runeShareSessionTracker.setEquipmentRunescapeItemIds(Loadout.equipmentItemIds(items));
+		}
+	}
+
+	@Subscribe
+	public void onGameStateChanged(GameStateChanged gameStateChanged)
+	{
+		if (runeShareSessionTracker == null)
+		{
+			return;
+		}
+
+		final GameState gameState = gameStateChanged.getGameState();
+		final boolean leavingCharacter = gameState == GameState.LOGIN_SCREEN || gameState == GameState.HOPPING;
+		if (leavingCharacter)
+		{
+			clearLoadout();
+		}
+	}
+
+	@Subscribe
 	public void onGameTick(GameTick gameTick)
 	{
 		String tag = bankTagsService.getActiveTag();
@@ -269,6 +318,27 @@ public class RuneSharePlugin extends Plugin
 	RuneShareConfig provideConfig(ConfigManager configManager)
 	{
 		return configManager.getConfig(RuneShareConfig.class);
+	}
+
+	/**
+	 * Must run on the client thread.
+	 */
+	private void readLoadoutFromClient() {
+		if (!runeShareConfig.shareLoadout()) {
+			clearLoadout();
+			return;
+		}
+
+		final ItemContainer backpack = client.getItemContainer(InventoryID.INV);
+		final ItemContainer equipment = client.getItemContainer(InventoryID.WORN);
+
+		runeShareSessionTracker.setBackpackRunescapeItemIds(backpack == null ? null : Loadout.backpackItemIds(backpack.getItems()));
+		runeShareSessionTracker.setEquipmentRunescapeItemIds(equipment == null ? null : Loadout.equipmentItemIds(equipment.getItems()));
+	}
+
+	private void clearLoadout() {
+		runeShareSessionTracker.setBackpackRunescapeItemIds(null);
+		runeShareSessionTracker.setEquipmentRunescapeItemIds(null);
 	}
 
 	private void updateAccountAndWorld() {

@@ -32,4 +32,11 @@ public interface RuneShareConfig extends Config
 			description = "If checked, the world map location where a task session started will be shared with RuneShare."
 	)
 	default boolean shareLocation() { return true; }
+
+	@ConfigItem(
+			keyName = "shareLoadout",
+			name = "Share Loadout?",
+			description = "If checked, the inventory and equipment you are wearing when a task session starts will be shared with RuneShare."
+	)
+	default boolean shareLoadout() { return true; }
 }

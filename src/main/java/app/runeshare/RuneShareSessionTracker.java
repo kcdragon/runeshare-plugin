@@ -9,6 +9,7 @@ import net.runelite.api.NPC;
 import net.runelite.api.WorldType;
 
 import java.util.EnumSet;
+import java.util.List;
 
 @Slf4j
 public class RuneShareSessionTracker {
@@ -27,6 +28,12 @@ public class RuneShareSessionTracker {
     @Setter
     private String accountType = null;
 
+    @Setter
+    private volatile List<Integer> backpackRunescapeItemIds = null;
+
+    @Setter
+    private volatile List<Integer> equipmentRunescapeItemIds = null;
+
     public RuneShareSessionTracker(RuneShareApi runeShareApi) {
         this.runeShareApi = runeShareApi;
     }
@@ -34,6 +41,8 @@ public class RuneShareSessionTracker {
     public void start(final StartTaskSession startTaskSession, final StartTaskSessionResponseHandler startTaskSessionResponseHandler) {
         startTaskSession.setAccountType(accountType);
         startTaskSession.setLeagues(isLeaguesWorld());
+        startTaskSession.setBackpackRunescapeItemIds(backpackRunescapeItemIds);
+        startTaskSession.setEquipmentRunescapeItemIds(equipmentRunescapeItemIds);
         runeShareApi.startTaskSession(startTaskSession, startTaskSessionResponse -> {
             this.running = true;
             this.taskSessionId = startTaskSessionResponse.getTaskSessionId();
