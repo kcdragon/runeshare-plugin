@@ -26,7 +26,7 @@ java -jar build/libs/RuneShare-1.0-SNAPSHOT-all.jar --debug --developer-mode
 
 Note the `shadowJar` task hardcodes `Main-Class: com.example.ExamplePluginTest` (a leftover from the RuneLite plugin template) — it does not match the actual `app.runeshare.RuneSharePluginTest`, so the jar is not runnable via `java -jar` without fixing that attribute.
 
-There is no lint task and no checkstyle config. Despite the name, `RuneSharePluginTest` is a launcher `main`, not a JUnit test; `./gradlew test` currently runs zero real tests, so there is no meaningful "run a single test" command yet. JUnit 4 is on the test classpath if you add tests.
+There is no lint task and no checkstyle config. Despite the name, `RuneSharePluginTest` is a launcher `main`, not a JUnit test. The real tests are JUnit 4 unit tests of pure helpers (`LoadoutTest`, `PlayerAccountTest`); run one with `mise exec -- ./gradlew test --tests app.runeshare.PlayerAccountTest`. Logic that reads the `client` is kept thin so that the mapping it feeds can be extracted into such a helper and tested.
 
 ## Dependency versions
 

@@ -1,5 +1,6 @@
 package app.runeshare.ui;
 
+import app.runeshare.PlayerAccount;
 import app.runeshare.RuneShareConfig;
 import app.runeshare.RuneShareSessionTracker;
 import app.runeshare.api.*;
@@ -46,6 +47,8 @@ public class RuneSharePluginPanel extends PluginPanel {
 
     private Layout activeLayout = null;
 
+    private PlayerAccount activePlayerAccount = null;
+
     private Integer activeNpcId = null;
 
     private Integer activeWorldMapXCoordinate = null;
@@ -67,15 +70,16 @@ public class RuneSharePluginPanel extends PluginPanel {
         drawPanel();
     }
 
-    public void updateActiveTag(@Nullable TagTab activeTagTab, @Nullable List<Integer> activeItemIds, @Nullable Layout activeLayout) {
+    public void updateActiveTag(@Nullable TagTab activeTagTab, @Nullable List<Integer> activeItemIds, @Nullable Layout activeLayout, @Nullable PlayerAccount activePlayerAccount) {
         if (!SwingUtilities.isEventDispatchThread()) {
-            SwingUtilities.invokeLater(() -> updateActiveTag(activeTagTab, activeItemIds, activeLayout));
+            SwingUtilities.invokeLater(() -> updateActiveTag(activeTagTab, activeItemIds, activeLayout, activePlayerAccount));
             return;
         }
 
         this.activeTagTab = activeTagTab;
         this.activeLayout = activeLayout;
         this.activeItemIds = activeItemIds;
+        this.activePlayerAccount = activePlayerAccount;
 
         if (activeTagTab != null) {
             log.debug("Redrawing panel with \"{}\" tag", activeTagTab.getTag());
@@ -234,7 +238,7 @@ public class RuneSharePluginPanel extends PluginPanel {
 
         final JButton syncButton = new JButton("Sync to RuneShare");
         syncButton.addActionListener((event) -> {
-            runeShareApi.createRuneShareBankTab(activeTagTab, activeItemIds, activeLayout);
+            runeShareApi.createRuneShareBankTab(activeTagTab, activeItemIds, activeLayout, activePlayerAccount);
         });
         fullWidth(syncButton);
 

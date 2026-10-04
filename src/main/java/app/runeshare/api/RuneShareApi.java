@@ -1,5 +1,6 @@
 package app.runeshare.api;
 
+import app.runeshare.PlayerAccount;
 import app.runeshare.RuneShareConfig;
 import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
@@ -32,10 +33,12 @@ public class RuneShareApi {
     @Inject
     private RuneShareConfig runeShareConfig;
 
-    public void createRuneShareBankTab(final TagTab tagTab, final List<Integer> itemIds, final Layout layout) {
+    public void createRuneShareBankTab(final TagTab tagTab, final List<Integer> itemIds, final Layout layout, final PlayerAccount playerAccount) {
         RuneShareBankTab runeShareBankTab = new RuneShareBankTab();
         runeShareBankTab.setTag(tagTab.getTag());
         runeShareBankTab.setIconRunescapeItemId(Integer.toString(tagTab.getIconItemId()));
+        runeShareBankTab.setAccountType(playerAccount.getAccountType());
+        runeShareBankTab.setLeagues(playerAccount.isLeagues());
 
         List<RuneShareBankTabItem> runeShareBankTabItems = new ArrayList<>();
         runeShareBankTab.setItems(runeShareBankTabItems);

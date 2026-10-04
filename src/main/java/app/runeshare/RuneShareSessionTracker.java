@@ -40,7 +40,9 @@ public class RuneShareSessionTracker {
 
     public void start(final StartTaskSession startTaskSession, final StartTaskSessionResponseHandler startTaskSessionResponseHandler) {
         startTaskSession.setAccountType(accountType);
-        startTaskSession.setLeagues(isLeaguesWorld());
+        // worldTypes is populated from the client thread, which may not have run
+        // yet when a session is started, in which case this is not Leagues.
+        startTaskSession.setLeagues(PlayerAccount.isLeagues(worldTypes));
         startTaskSession.setBackpackRunescapeItemIds(backpackRunescapeItemIds);
         startTaskSession.setEquipmentRunescapeItemIds(equipmentRunescapeItemIds);
         runeShareApi.startTaskSession(startTaskSession, startTaskSessionResponse -> {
@@ -76,17 +78,5 @@ public class RuneShareSessionTracker {
         final StopTaskSession stopTaskSession = StopTaskSession.builder().taskSessionId(this.taskSessionId).build();
         runeShareApi.stopTaskSession(stopTaskSession, stopTaskSessionResponseHandler);
         this.taskSessionId = null;
-    }
-
-    private boolean isLeaguesWorld()
-    {
-        // worldTypes is populated from the client thread, which may not have run
-        // yet when a session is started.
-        if (worldTypes == null)
-        {
-            return false;
-        }
-
-        return (worldTypes.contains(WorldType.SEASONAL) && !worldTypes.contains(WorldType.DEADMAN));
     }
 }

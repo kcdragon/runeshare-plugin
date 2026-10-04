@@ -11,4 +11,6 @@ public class RuneShareBankTab {
     private String tag;
     private String iconRunescapeItemId;
     private List<RuneShareBankTabItem> items;
+    private String accountType;
+    private boolean leagues;
 }

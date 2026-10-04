@@ -281,7 +281,7 @@ public class RuneSharePlugin extends Plugin
 				log.debug("There is no longer an active tag");
 
 				SwingUtilities.invokeLater(() -> {
-					this.panel.updateActiveTag(null, null, null);
+					this.panel.updateActiveTag(null, null, null, null);
 				});
 			}
 			return;
@@ -306,6 +306,10 @@ public class RuneSharePlugin extends Plugin
 
 			log.debug("Active tag has changed to \"{}\"", this.activeTag);
 
+			// The bank is open whenever a tag is active, so the player is logged in and
+			// the account type varbit has been loaded.
+			final PlayerAccount playerAccount = readPlayerAccountFromClient();
+
 			TagTab activeTagTab = tabManager.find(this.activeTag);
 			final List<Integer> itemIdsCopy = this.activeItemIds;
 			final Layout layoutCopy = this.activeLayout;
@@ -314,10 +318,10 @@ public class RuneSharePlugin extends Plugin
 				final String apiToken = runeShareConfig.apiToken();
 				if (activeTagTab != null && apiToken != null && !apiToken.isEmpty() && runeShareConfig.autoSave()) {
 					log.info("Automatically saving bank tab to RuneShare.");
-					runeShareApi.createRuneShareBankTab(activeTagTab, itemIdsCopy, layoutCopy);
+					runeShareApi.createRuneShareBankTab(activeTagTab, itemIdsCopy, layoutCopy, playerAccount);
 				}
 
-				this.panel.updateActiveTag(activeTagTab, itemIdsCopy, layoutCopy);
+				this.panel.updateActiveTag(activeTagTab, itemIdsCopy, layoutCopy, playerAccount);
 			});
 		}
 	}
@@ -355,23 +359,13 @@ public class RuneSharePlugin extends Plugin
 	}
 
 	private String getAccountType() {
-		int accountTypeId = client.getVarbitValue(Varbits.ACCOUNT_TYPE);
-		String accountType = null;
-		if (accountTypeId == 0) {
-			accountType = "normal";
-		} else if (accountTypeId == 1) {
-			accountType = "ironman";
-		} else if (accountTypeId == 2) {
-			accountType = "ultimate_ironman";
-		} else if (accountTypeId == 3) {
-			accountType = "hardcore_ironman";
-		} else if (accountTypeId == 4) {
-			accountType = "group_ironman";
-		} else if (accountTypeId == 5) {
-			accountType = "hardcore_group_ironman";
-		} else if (accountTypeId == 6) {
-			accountType = "unranked_group_ironman";
-		}
-		return accountType;
+		return PlayerAccount.accountType(client.getVarbitValue(Varbits.ACCOUNT_TYPE));
+	}
+
+	/**
+	 * Must run on the client thread.
+	 */
+	private PlayerAccount readPlayerAccountFromClient() {
+		return PlayerAccount.from(client.getVarbitValue(Varbits.ACCOUNT_TYPE), client.getWorldType());
 	}
 }
