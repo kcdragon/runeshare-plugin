@@ -15,6 +15,7 @@ public class StartTaskSession {
     private String accountType;
     private Integer worldMapXCoordinate;
     private Integer worldMapYCoordinate;
+    private Integer worldMapPlane;
     private List<Integer> backpackRunescapeItemIds;
     private List<Integer> equipmentRunescapeItemIds;
 }

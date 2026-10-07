@@ -55,6 +55,8 @@ public class RuneSharePluginPanel extends PluginPanel {
 
     private Integer activeWorldMapYCoordinate = null;
 
+    private Integer activeWorldMapPlane = null;
+
     private Integer activeTaskSessionId = null;
 
     public RuneSharePluginPanel(@NonNull RuneShareConfig runeShareConfig, @NonNull RuneShareApi runeShareApi, @NonNull RuneShareSessionTracker runeShareSessionTracker) {
@@ -90,14 +92,15 @@ public class RuneSharePluginPanel extends PluginPanel {
         drawPanel();
     }
 
-    public void updateNpc(int npcId, @Nullable Integer x, @Nullable Integer y) {
+    public void updateNpc(int npcId, @Nullable Integer x, @Nullable Integer y, @Nullable Integer plane) {
         if (!SwingUtilities.isEventDispatchThread()) {
-            SwingUtilities.invokeLater(() -> updateNpc(npcId, x, y));
+            SwingUtilities.invokeLater(() -> updateNpc(npcId, x, y, plane));
             return;
         }
 
         this.activeWorldMapXCoordinate = x;
         this.activeWorldMapYCoordinate = y;
+        this.activeWorldMapPlane = plane;
 
         // The panel doesn't show coordinates, so only a new NPC needs a redraw.
         if (!Objects.equals(this.activeNpcId, npcId)) {
@@ -119,6 +122,7 @@ public class RuneSharePluginPanel extends PluginPanel {
 
         this.activeWorldMapXCoordinate = null;
         this.activeWorldMapYCoordinate = null;
+        this.activeWorldMapPlane = null;
     }
 
     public void redraw() {
@@ -260,6 +264,7 @@ public class RuneSharePluginPanel extends PluginPanel {
                         .npcRunescapeId(activeNpcId)
                         .worldMapXCoordinate(activeWorldMapXCoordinate)
                         .worldMapYCoordinate(activeWorldMapYCoordinate)
+                        .worldMapPlane(activeWorldMapPlane)
                         .build();
 
                 runeShareSessionTracker.start(startTaskSession, startTaskSessionResponse -> {

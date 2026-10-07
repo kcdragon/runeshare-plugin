@@ -197,18 +197,22 @@ public class RuneSharePlugin extends Plugin
 			// never read it in the first place.
 			Integer x = null;
 			Integer y = null;
+			Integer plane = null;
 			if (runeShareConfig.shareLocation())
 			{
 				final Player localPlayer = client.getLocalPlayer();
-				final WorldPoint playerLocation = localPlayer == null ? null : localPlayer.getWorldLocation();
+				// getWorldLocation() is in instance space inside an instance, which
+				// doesn't correspond to anywhere on the real map.
+				final WorldPoint playerLocation = localPlayer == null ? null : WorldPoint.fromLocalInstance(client, localPlayer.getLocalLocation());
 				final WorldPoint localWorld = playerLocation == null ? null : WorldPoint.getMirrorPoint(playerLocation, true);
 				x = localWorld == null ? null : localWorld.getX();
 				y = localWorld == null ? null : localWorld.getY();
+				plane = localWorld == null ? null : localWorld.getPlane();
 			}
 
 			if (!npcHasNoDefinition)
 			{
-				this.panel.updateNpc(npcId, x, y);
+				this.panel.updateNpc(npcId, x, y, plane);
 			}
 
 			long currentTimeInMs = System.currentTimeMillis();
