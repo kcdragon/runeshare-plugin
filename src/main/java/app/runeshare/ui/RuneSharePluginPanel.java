@@ -11,6 +11,7 @@ import net.runelite.client.plugins.banktags.tabs.TagTab;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.PluginPanel;
+import net.runelite.client.util.LinkBrowser;
 
 import javax.annotation.Nullable;
 import javax.swing.*;
@@ -20,7 +21,10 @@ import javax.swing.border.MatteBorder;
 import java.awt.Color;
 import java.awt.BorderLayout;
 import java.awt.Component;
+import java.awt.Cursor;
 import java.awt.Dimension;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.List;
 import java.util.Objects;
 
@@ -37,6 +41,9 @@ public class RuneSharePluginPanel extends PluginPanel {
 
     @NonNull
     private final RuneShareApi runeShareApi;
+
+    @NonNull
+    private final RuneShareConnection runeShareConnection;
 
     @NonNull
     private final RuneShareSessionTracker runeShareSessionTracker;
@@ -59,12 +66,15 @@ public class RuneSharePluginPanel extends PluginPanel {
 
     private Integer activeTaskSessionId = null;
 
-    public RuneSharePluginPanel(@NonNull RuneShareConfig runeShareConfig, @NonNull RuneShareApi runeShareApi, @NonNull RuneShareSessionTracker runeShareSessionTracker) {
+    public RuneSharePluginPanel(@NonNull RuneShareConfig runeShareConfig, @NonNull RuneShareApi runeShareApi, @NonNull RuneShareConnection runeShareConnection, @NonNull RuneShareSessionTracker runeShareSessionTracker) {
         super(true);
 
         this.runeShareConfig = runeShareConfig;
         this.runeShareApi = runeShareApi;
+        this.runeShareConnection = runeShareConnection;
         this.runeShareSessionTracker = runeShareSessionTracker;
+
+        runeShareConnection.setListener(this::onConnectionChanged);
 
         setBackground(ColorScheme.DARK_GRAY_COLOR);
         setLayout(new BorderLayout());
@@ -125,6 +135,31 @@ public class RuneSharePluginPanel extends PluginPanel {
         this.activeWorldMapPlane = null;
     }
 
+    @Override
+    public void onActivate() {
+        final ConnectionStatus status = runeShareConnection.getStatus();
+        final boolean worthRetrying = status == ConnectionStatus.UNAVAILABLE || status == ConnectionStatus.API_DISABLED;
+        if (worthRetrying) {
+            runeShareApi.fetchCurrentUser();
+        }
+    }
+
+    private void onConnectionChanged() {
+        if (!SwingUtilities.isEventDispatchThread()) {
+            SwingUtilities.invokeLater(this::onConnectionChanged);
+            return;
+        }
+
+        // A rejected token can't stop the session on RuneShare either, so the
+        // player would otherwise be stuck behind a Stop button that never works.
+        if (runeShareConnection.getStatus() == ConnectionStatus.INVALID_TOKEN && activeTaskSessionId != null) {
+            runeShareSessionTracker.abandon();
+            activeTaskSessionId = null;
+        }
+
+        drawPanel();
+    }
+
     public void redraw() {
         if (!SwingUtilities.isEventDispatchThread()) {
             SwingUtilities.invokeLater(this::redraw);
@@ -176,6 +211,22 @@ public class RuneSharePluginPanel extends PluginPanel {
         return textArea;
     }
 
+    private JLabel createLink(String text, String url) {
+        final String escapedText = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+        final JLabel link = new JLabel("<html><u>" + escapedText + "</u></html>");
+        link.setForeground(ColorScheme.BRAND_ORANGE);
+        link.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        link.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent event) {
+                LinkBrowser.browse(url);
+            }
+        });
+        fullWidth(link);
+
+        return link;
+    }
+
     /**
      * Stretch a component across the panel.
      * <p>
@@ -213,6 +264,13 @@ public class RuneSharePluginPanel extends PluginPanel {
             return;
         }
 
+        final ConnectionStatus connectionStatus = runeShareConnection.getStatus();
+        addConnectionStatus(containerPanel, connectionStatus);
+        if (connectionStatus == ConnectionStatus.INVALID_TOKEN) {
+            finishPanel(containerPanel);
+            return;
+        }
+
         containerPanel.add(Box.createVerticalStrut(12));
         containerPanel.add(createSectionHeader(BANK_TABS_TITLE));
         containerPanel.add(Box.createVerticalStrut(6));
@@ -224,6 +282,44 @@ public class RuneSharePluginPanel extends PluginPanel {
         addTaskSessionsSection(containerPanel);
 
         finishPanel(containerPanel);
+    }
+
+    private void addConnectionStatus(JPanel containerPanel, ConnectionStatus connectionStatus) {
+        switch (connectionStatus) {
+            case CONNECTED:
+                final CurrentUser currentUser = runeShareConnection.getCurrentUser();
+                if (currentUser == null) {
+                    return;
+                }
+
+                final String connectedAs = "Connected as " + currentUser.getUsername();
+                containerPanel.add(Box.createVerticalStrut(6));
+                if (currentUser.getProfileUrl() != null) {
+                    containerPanel.add(createLink(connectedAs, currentUser.getProfileUrl()));
+                } else {
+                    containerPanel.add(createBodyText(connectedAs));
+                }
+
+                if (currentUser.getApiToken() != null) {
+                    final JTextArea tokenName = createBodyText("Using the \"" + currentUser.getApiToken().getName() + "\" API token");
+                    tokenName.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
+                    tokenName.setFont(FontManager.getRunescapeSmallFont());
+                    containerPanel.add(tokenName);
+                }
+                return;
+            case INVALID_TOKEN:
+                containerPanel.add(Box.createVerticalStrut(10));
+                containerPanel.add(createBodyText("Your API token wasn't accepted. Create a new one at osrs.runeshare.app/api_tokens and paste it into the plugin settings."));
+                return;
+            case API_DISABLED:
+                containerPanel.add(Box.createVerticalStrut(6));
+                containerPanel.add(createBodyText("RuneShare isn't accepting plugin data right now."));
+                return;
+            case UNAVAILABLE:
+                containerPanel.add(Box.createVerticalStrut(6));
+                containerPanel.add(createBodyText("Can't reach RuneShare right now."));
+                return;
+        }
     }
 
     private void addBankTabsSection(JPanel containerPanel) {

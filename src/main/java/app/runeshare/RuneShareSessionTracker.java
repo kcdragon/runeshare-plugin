@@ -72,6 +72,15 @@ public class RuneShareSessionTracker {
         runeShareApi.createTaskEvent(runeShareTaskEvent);
     }
 
+    /**
+     * Forgets the running session without telling RuneShare, for when the token
+     * has been rejected and a stop request could never succeed.
+     */
+    public void abandon() {
+        this.running = false;
+        this.taskSessionId = null;
+    }
+
     public void stop(StopTaskSessionResponseHandler stopTaskSessionResponseHandler) {
         this.running = false;
 

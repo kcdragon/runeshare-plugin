@@ -55,6 +55,7 @@ Three layers, with the plugin class as the only thing touching RuneLite events:
 - **`RuneSharePlugin`** — the RuneLite entry point. Subscribes to game events, owns all mutable "what is currently active" state, registers the nav button/panel.
 - **`RuneShareSessionTracker`** — task-session state machine (running or not, current `taskSessionId`). Sits between the plugin and the API so the panel can start/stop sessions without knowing about HTTP.
 - **`RuneShareApi`** — all HTTP. `@Singleton`, injected with RuneLite's shared `OkHttpClient` and `Gson`.
+- **`api/RuneShareConnection`** — whether RuneShare accepts the configured token (`ConnectionStatus`) and whose it is (`CurrentUser`, from `GET /api/me`). Every response from every endpoint is reported to it, so a token revoked mid-session shows up without a restart. Reports carry the token the request was sent with and are ignored once the player has changed it.
 - **`ui/RuneSharePluginPanel`** — the side panel.
 
 `@PluginDependency(BankTagsPlugin.class)` makes RuneLite inject `TabManager`, `TagManager`, and `BankTagsService`. These are the only source of bank tag data; the plugin never reads the bank widget directly.

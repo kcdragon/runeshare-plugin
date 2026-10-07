@@ -4,6 +4,7 @@ import app.runeshare.PlayerAccount;
 import app.runeshare.RuneShareConfig;
 import com.google.gson.FieldNamingPolicy;
 import com.google.gson.Gson;
+import com.google.gson.JsonParseException;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.plugins.banktags.tabs.Layout;
 import net.runelite.client.plugins.banktags.tabs.TagTab;
@@ -21,6 +22,7 @@ import java.util.List;
 public class RuneShareApi {
     private static final String RUNESHARE_HOST = "https://osrs.runeshare.app";
     private static final String BANK_TABS_PATH = "/api/bank_tabs";
+    private static final String ME_PATH = "/api/me";
     private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
 
     private final OkHttpClient okHttpClient;
@@ -29,11 +31,27 @@ public class RuneShareApi {
 
     private final RuneShareConfig runeShareConfig;
 
+    private final RuneShareConnection runeShareConnection;
+
     @Inject
-    public RuneShareApi(OkHttpClient okHttpClient, Gson gson, RuneShareConfig runeShareConfig) {
+    public RuneShareApi(OkHttpClient okHttpClient, Gson gson, RuneShareConfig runeShareConfig, RuneShareConnection runeShareConnection) {
         this.okHttpClient = okHttpClient;
         this.runeshareGson = gson.newBuilder().setFieldNamingPolicy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES).create();
         this.runeShareConfig = runeShareConfig;
+        this.runeShareConnection = runeShareConnection;
+    }
+
+    public void fetchCurrentUser() {
+        final String apiToken = runeShareConfig.apiToken();
+        final Request request = newRequest(ME_PATH, apiToken)
+                .get()
+                .build();
+
+        send(request, apiToken, "fetch the current user", response -> {
+            if (response.isSuccessful()) {
+                runeShareConnection.reportCurrentUser(apiToken, response, parseCurrentUser(response.getBody()));
+            }
+        });
     }
 
     public void createRuneShareBankTab(final TagTab tagTab, final List<Integer> itemIds, final Layout layout, final PlayerAccount playerAccount) {
@@ -67,11 +85,12 @@ public class RuneShareApi {
     }
 
     public void startTaskSession(final StartTaskSession startTaskSession, final StartTaskSessionResponseHandler startTaskSessionResponseHandler) {
-        final Request request = newRequest("/api/task_sessions")
+        final String apiToken = runeShareConfig.apiToken();
+        final Request request = newRequest("/api/task_sessions", apiToken)
                 .post(jsonBody(startTaskSession))
                 .build();
 
-        send(request, "start task session", response -> {
+        send(request, apiToken, "start task session", response -> {
             if (response.isSuccessful() && response.getBody() != null) {
                 startTaskSessionResponseHandler.onSuccess(runeshareGson.fromJson(response.getBody(), StartTaskSessionResponse.class));
             }
@@ -79,11 +98,12 @@ public class RuneShareApi {
     }
 
     public void stopTaskSession(final StopTaskSession stopTaskSession, final StopTaskSessionResponseHandler stopTaskSessionResponseHandler) {
-        final Request request = newRequest("/api/task_sessions/" + stopTaskSession.getTaskSessionId())
+        final String apiToken = runeShareConfig.apiToken();
+        final Request request = newRequest("/api/task_sessions/" + stopTaskSession.getTaskSessionId(), apiToken)
                 .put(RequestBody.create(null, ""))
                 .build();
 
-        send(request, "stop task session", response -> {
+        send(request, apiToken, "stop task session", response -> {
             if (response.isSuccessful()) {
                 stopTaskSessionResponseHandler.onSuccess();
             }
@@ -91,25 +111,27 @@ public class RuneShareApi {
     }
 
     public void createTaskEvent(final RuneShareTaskEvent runeShareTaskEvent) {
-        final Request request = newRequest("/api/task_sessions/" + runeShareTaskEvent.getTaskSessionId() + "/task_events")
+        final String apiToken = runeShareConfig.apiToken();
+        final Request request = newRequest("/api/task_sessions/" + runeShareTaskEvent.getTaskSessionId() + "/task_events", apiToken)
                 .post(jsonBody(runeShareTaskEvent))
                 .build();
 
-        send(request, "create task event", response -> {});
+        send(request, apiToken, "create task event", response -> {});
     }
 
     private void createRuneShareBankTab(final RuneShareBankTab runeShareBankTab) {
-        final Request request = newRequest(BANK_TABS_PATH)
+        final String apiToken = runeShareConfig.apiToken();
+        final Request request = newRequest(BANK_TABS_PATH, apiToken)
                 .post(jsonBody(runeShareBankTab))
                 .build();
 
-        send(request, "update bank tab", response -> {});
+        send(request, apiToken, "update bank tab", response -> {});
     }
 
-    private Request.Builder newRequest(final String path) {
+    private Request.Builder newRequest(final String path, final String apiToken) {
         return new Request.Builder()
                 .url(RUNESHARE_HOST + path)
-                .header("Authorization", "Token token=" + runeShareConfig.apiToken())
+                .header("Authorization", "Token token=" + apiToken)
                 .header("Accept", "application/json");
     }
 
@@ -117,14 +139,18 @@ public class RuneShareApi {
         return RequestBody.create(JSON, runeshareGson.toJson(payload));
     }
 
-    private void send(final Request request, final String action, final ApiResponseHandler apiResponseHandler) {
+    /**
+     * @param apiToken the token the request was built with, so that a response
+     *                 arriving after the player changes it can be recognised as stale
+     */
+    private void send(final Request request, final String apiToken, final String action, final ApiResponseHandler apiResponseHandler) {
         okHttpClient.newCall(request).enqueue(new Callback()
         {
             @Override
             public void onFailure(Call call, IOException e)
             {
                 log.warn("Failed to {} in RuneShare.", action, e);
-                apiResponseHandler.onResponse(ApiResponse.noResponse());
+                handle(request, apiToken, ApiResponse.noResponse(), apiResponseHandler);
             }
 
             @Override
@@ -140,9 +166,37 @@ public class RuneShareApi {
                 } else {
                     log.warn("Failed to {} in RuneShare. Response status code is {}. Response body is {}", action, apiResponse.getStatusCode(), apiResponse.getBody());
                 }
-                apiResponseHandler.onResponse(apiResponse);
+                handle(request, apiToken, apiResponse, apiResponseHandler);
             }
         });
+    }
+
+    private void handle(final Request request, final String apiToken, final ApiResponse apiResponse, final ApiResponseHandler apiResponseHandler) {
+        runeShareConnection.report(apiToken, apiResponse);
+
+        // Any accepted request proves the token works, but only /me says whose
+        // it is, so fetch it if the startup /me call didn't get through.
+        final boolean connectedWithoutKnowingWho = apiResponse.isSuccessful() && runeShareConnection.getCurrentUser() == null;
+        final boolean isMeRequest = request.url().encodedPath().equals(ME_PATH);
+        if (connectedWithoutKnowingWho && !isMeRequest) {
+            fetchCurrentUser();
+        }
+
+        apiResponseHandler.onResponse(apiResponse);
+    }
+
+    @Nullable
+    private CurrentUser parseCurrentUser(@Nullable final String body) {
+        if (body == null) {
+            return null;
+        }
+
+        try {
+            return runeshareGson.fromJson(body, CurrentUser.class);
+        } catch (JsonParseException e) {
+            log.warn("Failed to parse the current user from RuneShare: {}", body, e);
+            return null;
+        }
     }
 
     @Nullable

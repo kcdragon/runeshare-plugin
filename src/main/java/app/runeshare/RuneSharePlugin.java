@@ -1,6 +1,8 @@
 package app.runeshare;
 
+import app.runeshare.api.ConnectionStatus;
 import app.runeshare.api.RuneShareApi;
+import app.runeshare.api.RuneShareConnection;
 import app.runeshare.ui.RuneSharePluginPanel;
 import com.google.inject.Provides;
 import javax.inject.Inject;
@@ -70,6 +72,9 @@ public class RuneSharePlugin extends Plugin
 	@Inject
 	private RuneShareApi runeShareApi;
 
+	@Inject
+	private RuneShareConnection runeShareConnection;
+
 	private RuneSharePluginPanel panel;
 
 	private NavigationButton navigationButton;
@@ -104,7 +109,9 @@ public class RuneSharePlugin extends Plugin
 			return true;
 		});
 
-		this.panel = new RuneSharePluginPanel(runeShareConfig, runeShareApi, runeShareSessionTracker);
+		this.panel = new RuneSharePluginPanel(runeShareConfig, runeShareApi, runeShareConnection, runeShareSessionTracker);
+
+		checkApiToken();
 
 		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "/icon.png");
 
@@ -121,6 +128,8 @@ public class RuneSharePlugin extends Plugin
 	@Override
 	protected void shutDown() throws Exception
 	{
+		runeShareConnection.setListener(() -> {});
+
 		// shutDown still runs if startUp threw before the button was built.
 		if (navigationButton != null)
 		{
@@ -133,6 +142,10 @@ public class RuneSharePlugin extends Plugin
 	public void onConfigChanged(ConfigChanged event)
 	{
 		if (event.getGroup().equals(RuneShareConfig.CONFIG_GROUP)) {
+			if (event.getKey().equals(RuneShareConfig.API_TOKEN_CONFIG_KEY)) {
+				checkApiToken();
+			}
+
 			// ConfigChanged is posted on the thread that changed the setting, the EDT for
 			// the settings panel, so reading containers has to hop to the client thread.
 			if (runeShareSessionTracker != null) {
@@ -314,7 +327,8 @@ public class RuneSharePlugin extends Plugin
 
 			SwingUtilities.invokeLater(() -> {
 				final String apiToken = runeShareConfig.apiToken();
-				if (activeTagTab != null && apiToken != null && !apiToken.isEmpty() && runeShareConfig.autoSave()) {
+				final boolean apiTokenUsable = apiToken != null && !apiToken.isEmpty() && runeShareConnection.getStatus() != ConnectionStatus.INVALID_TOKEN;
+				if (activeTagTab != null && apiTokenUsable && runeShareConfig.autoSave()) {
 					log.info("Automatically saving bank tab to RuneShare.");
 					runeShareApi.createRuneShareBankTab(activeTagTab, itemIdsCopy, layoutCopy, playerAccount);
 				}
@@ -328,6 +342,15 @@ public class RuneSharePlugin extends Plugin
 	RuneShareConfig provideConfig(ConfigManager configManager)
 	{
 		return configManager.getConfig(RuneShareConfig.class);
+	}
+
+	private void checkApiToken() {
+		runeShareConnection.reset();
+
+		final String apiToken = runeShareConfig.apiToken();
+		if (apiToken != null && !apiToken.isEmpty()) {
+			runeShareApi.fetchCurrentUser();
+		}
 	}
 
 	/**
