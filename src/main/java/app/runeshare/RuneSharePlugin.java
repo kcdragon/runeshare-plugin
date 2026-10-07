@@ -1,7 +1,9 @@
 package app.runeshare;
 
+import app.runeshare.api.BankTabSync;
 import app.runeshare.api.ConnectionStatus;
 import app.runeshare.api.RuneShareApi;
+import app.runeshare.api.RuneShareBankTab;
 import app.runeshare.api.RuneShareConnection;
 import app.runeshare.ui.RuneSharePluginPanel;
 import com.google.inject.Provides;
@@ -34,6 +36,8 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @PluginDescriptor(
@@ -75,6 +79,9 @@ public class RuneSharePlugin extends Plugin
 	@Inject
 	private RuneShareConnection runeShareConnection;
 
+	@Inject
+	private ScheduledExecutorService scheduledExecutorService;
+
 	private RuneSharePluginPanel panel;
 
 	private NavigationButton navigationButton;
@@ -87,12 +94,17 @@ public class RuneSharePlugin extends Plugin
 
 	private RuneShareSessionTracker runeShareSessionTracker = null;
 
+	private BankTabSync bankTabSync = null;
+
 	private Long lastTaskEventSentAtMs = null;
 
 	@Override
 	protected void startUp() throws Exception
 	{
 		runeShareSessionTracker = new RuneShareSessionTracker(runeShareApi);
+		bankTabSync = new BankTabSync(
+				runeShareApi::sendBankTab,
+				(task, delayMs) -> scheduledExecutorService.schedule(task, delayMs, TimeUnit.MILLISECONDS));
 
 		// startUp runs on the EDT when the plugin is toggled on, but reading the
 		// account type varbit asserts it is on the client thread. Returning false
@@ -109,7 +121,7 @@ public class RuneSharePlugin extends Plugin
 			return true;
 		});
 
-		this.panel = new RuneSharePluginPanel(runeShareConfig, runeShareApi, runeShareConnection, runeShareSessionTracker);
+		this.panel = new RuneSharePluginPanel(runeShareConfig, runeShareApi, runeShareConnection, runeShareSessionTracker, bankTabSync);
 
 		checkApiToken();
 
@@ -129,6 +141,11 @@ public class RuneSharePlugin extends Plugin
 	protected void shutDown() throws Exception
 	{
 		runeShareConnection.setListener(() -> {});
+		runeShareApi.cancelRetries();
+		if (bankTabSync != null)
+		{
+			bankTabSync.cancel();
+		}
 
 		// shutDown still runs if startUp threw before the button was built.
 		if (navigationButton != null)
@@ -330,7 +347,7 @@ public class RuneSharePlugin extends Plugin
 				final boolean apiTokenUsable = apiToken != null && !apiToken.isEmpty() && runeShareConnection.getStatus() != ConnectionStatus.INVALID_TOKEN;
 				if (activeTagTab != null && apiTokenUsable && runeShareConfig.autoSave()) {
 					log.info("Automatically saving bank tab to RuneShare.");
-					runeShareApi.createRuneShareBankTab(activeTagTab, itemIdsCopy, layoutCopy, playerAccount);
+					bankTabSync.sync(RuneShareBankTab.from(activeTagTab, itemIdsCopy, layoutCopy, playerAccount));
 				}
 
 				this.panel.updateActiveTag(activeTagTab, itemIdsCopy, layoutCopy, playerAccount);

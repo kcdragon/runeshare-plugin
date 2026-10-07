@@ -8,9 +8,15 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.NPC;
 import net.runelite.api.WorldType;
 
+import javax.swing.SwingUtilities;
 import java.util.EnumSet;
 import java.util.List;
 
+/**
+ * Sessions are started and stopped on the EDT, and responses from RuneShare are
+ * handed back to the EDT before touching the session or calling the handlers
+ * passed in. {@code running} is also read by the client thread, hence volatile.
+ */
 @Slf4j
 public class RuneShareSessionTracker {
 
@@ -18,7 +24,7 @@ public class RuneShareSessionTracker {
     private final RuneShareApi runeShareApi;
 
     @Getter
-    private boolean running = false;
+    private volatile boolean running = false;
 
     private Integer taskSessionId = null;
 
@@ -45,10 +51,20 @@ public class RuneShareSessionTracker {
         startTaskSession.setLeagues(PlayerAccount.isLeagues(worldTypes));
         startTaskSession.setBackpackRunescapeItemIds(backpackRunescapeItemIds);
         startTaskSession.setEquipmentRunescapeItemIds(equipmentRunescapeItemIds);
-        runeShareApi.startTaskSession(startTaskSession, startTaskSessionResponse -> {
-            this.running = true;
-            this.taskSessionId = startTaskSessionResponse.getTaskSessionId();
-            startTaskSessionResponseHandler.onSuccess(startTaskSessionResponse);
+        runeShareApi.startTaskSession(startTaskSession, new StartTaskSessionResponseHandler() {
+            @Override
+            public void onSuccess(StartTaskSessionResponse startTaskSessionResponse) {
+                SwingUtilities.invokeLater(() -> {
+                    running = true;
+                    taskSessionId = startTaskSessionResponse.getTaskSessionId();
+                    startTaskSessionResponseHandler.onSuccess(startTaskSessionResponse);
+                });
+            }
+
+            @Override
+            public void onFailure(String reason) {
+                SwingUtilities.invokeLater(() -> startTaskSessionResponseHandler.onFailure(reason));
+            }
         });
     }
 
@@ -85,7 +101,17 @@ public class RuneShareSessionTracker {
         this.running = false;
 
         final StopTaskSession stopTaskSession = StopTaskSession.builder().taskSessionId(this.taskSessionId).build();
-        runeShareApi.stopTaskSession(stopTaskSession, stopTaskSessionResponseHandler);
+        runeShareApi.stopTaskSession(stopTaskSession, new StopTaskSessionResponseHandler() {
+            @Override
+            public void onSuccess() {
+                SwingUtilities.invokeLater(stopTaskSessionResponseHandler::onSuccess);
+            }
+
+            @Override
+            public void onFailure(String reason) {
+                SwingUtilities.invokeLater(() -> stopTaskSessionResponseHandler.onFailure(reason));
+            }
+        });
         this.taskSessionId = null;
     }
 }

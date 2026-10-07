@@ -64,7 +64,9 @@ Three layers, with the plugin class as the only thing touching RuneLite events:
 
 This is the constraint most likely to bite you. RuneLite calls `@Subscribe` handlers on the **client thread**; Swing work must happen on the **EDT**. The established pattern is: read everything you need off the client thread synchronously into local `final` variables, then hand only those values to `SwingUtilities.invokeLater`. See `onHitsplatApplied` in `RuneSharePlugin`, which snapshots all seven skill XP values before the `invokeLater` — do not move `client.getSkillExperience(...)` (or any other `client.*` call) inside the lambda.
 
-HTTP is never blocking: every `RuneShareApi` method builds a request and uses `okHttpClient.newCall(request).enqueue(...)`, with results delivered through the `...ResponseHandler` callback interfaces. Do not switch these to `execute()` — it would block whichever thread called in.
+HTTP is never blocking: every `RuneShareApi` method builds a request and uses `okHttpClient.newCall(request).enqueue(...)`, with results delivered through the `...ResponseHandler` callback interfaces. Do not switch these to `execute()` — it would block whichever thread called in. Those callbacks run on OkHttp threads; `RuneShareSessionTracker` hops to the EDT before touching session state or calling the panel back, and `RuneShareConnection` and `BankTabSync` guard their state with a lock and notify the panel, whose `redraw()` makes the hop.
+
+Retries are scheduled on RuneLite's injected `ScheduledExecutorService`. It is shared by every plugin: cancel the futures you scheduled (`RuneShareApi.cancelRetries()`, `BankTabSync.cancel()` in `shutDown`), never shut down the executor.
 
 ### Change detection
 
@@ -74,15 +76,20 @@ Combat task events are separately rate-limited to one every 30s (`TIME_BETWEEN_T
 
 ### API conventions
 
-All requests go to `https://osrs.runeshare.app`, authenticate with `Authorization: Token token=<apiToken>`, and serialize with a Gson instance rebuilt per call as `gson.newBuilder().setFieldNamingPolicy(LOWER_CASE_WITH_UNDERSCORES)`. The API expects snake_case, so camelCase Java fields map automatically — new request classes are plain Lombok `@Builder`/`@Getter` DTOs in `app.runeshare.api` and need no annotations to serialize correctly.
+All requests go to `https://osrs.runeshare.app`, authenticate with `Authorization: Token token=<apiToken>`, and serialize with one Gson built in `RuneShareApi`'s constructor as `gson.newBuilder().setFieldNamingPolicy(LOWER_CASE_WITH_UNDERSCORES)`. The API expects snake_case, so camelCase Java fields map automatically — new request classes are plain Lombok `@Builder`/`@Getter` DTOs in `app.runeshare.api` and need no annotations to serialize correctly.
 
-Endpoints in use: `POST /api/bank_tabs`, `POST /api/task_sessions`, `PUT /api/task_sessions/{id}`, `POST /api/task_sessions/{id}/task_events`.
+Endpoints in use: `GET /api/me`, `POST /api/bank_tabs`, `POST /api/task_sessions`, `PUT /api/task_sessions/{id}`, `POST /api/task_sessions/{id}/task_events`. The server documents them in `docs/API.md` of the `runeshare` repo; fields are only ever added there, so treat any field newer than the endpoint (like `profile_url` on `/me`) as nullable.
 
-Failures are logged and swallowed — `onFailure` and non-2xx responses call `log.warn` and nothing else. There is no retry and no user-visible error surface.
+Every request goes through `RuneShareApi.send`, which logs failures with the response body, reports the outcome to `RuneShareConnection`, and wraps it in an `ApiResponse` (`NO_RESPONSE` when there was none, plus the first entry of a 422's `errors` array). How each call handles failure:
+
+- `POST /api/bank_tabs` — `BankTabSync` keeps only the latest tab, retries transient failures per `RetryPolicy.BANK_TAB` (30s, 60s, 120s), and shows the outcome in the Bank Tabs section.
+- `POST /api/task_sessions` — no retry; the panel re-enables Start and shows why.
+- `PUT /api/task_sessions/{id}` — retried per `RetryPolicy.STOP_TASK_SESSION`; the panel has already moved on, and only shows a message if every try fails.
+- `POST .../task_events` — no retry, nothing shown. Each event carries total XP, so the next one makes up for a lost one.
 
 ### Panel rendering
 
-`RuneSharePluginPanel.drawPanel()` rebuilds the entire panel from scratch (`removeAll()` then re-add) on every update rather than mutating existing components. Every state change funnels through it, so follow that pattern rather than introducing incremental updates. What renders is driven by, in order: whether an API token is configured, whether there is an active tag tab, whether `autoSave` is on (auto-save message vs. a manual "Sync to RuneShare" button), and whether an NPC is being fought (Start/Stop Session button).
+`RuneSharePluginPanel.drawPanel()` rebuilds the entire panel from scratch (`removeAll()` then re-add) on every update rather than mutating existing components. Every state change funnels through it, so follow that pattern rather than introducing incremental updates. What renders is driven by, in order: whether an API token is configured, the `ConnectionStatus` (a rejected token hides everything else), whether there is an active tag tab, whether `autoSave` is on (auto-save message vs. a manual "Sync to RuneShare" button), and whether an NPC is being fought (Start/Stop Session button).
 
 `RuneShareConfig.autoSave()` defaults to `false`, i.e. manual sync.
 

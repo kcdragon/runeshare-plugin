@@ -25,6 +25,7 @@ import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Objects;
 
@@ -35,6 +36,8 @@ public class RuneSharePluginPanel extends PluginPanel {
     private static final String BANK_TABS_TITLE = "Bank Tabs";
 
     private static final String TASK_SESSIONS_TITLE = "Task Sessions";
+
+    private static final DateTimeFormatter SYNCED_AT_FORMAT = DateTimeFormatter.ofPattern("HH:mm");
 
     @NonNull
     private final RuneShareConfig runeShareConfig;
@@ -47,6 +50,9 @@ public class RuneSharePluginPanel extends PluginPanel {
 
     @NonNull
     private final RuneShareSessionTracker runeShareSessionTracker;
+
+    @NonNull
+    private final BankTabSync bankTabSync;
 
     private TagTab activeTagTab = null;
 
@@ -66,15 +72,22 @@ public class RuneSharePluginPanel extends PluginPanel {
 
     private Integer activeTaskSessionId = null;
 
-    public RuneSharePluginPanel(@NonNull RuneShareConfig runeShareConfig, @NonNull RuneShareApi runeShareApi, @NonNull RuneShareConnection runeShareConnection, @NonNull RuneShareSessionTracker runeShareSessionTracker) {
+    private boolean startingTaskSession = false;
+
+    @Nullable
+    private String taskSessionError = null;
+
+    public RuneSharePluginPanel(@NonNull RuneShareConfig runeShareConfig, @NonNull RuneShareApi runeShareApi, @NonNull RuneShareConnection runeShareConnection, @NonNull RuneShareSessionTracker runeShareSessionTracker, @NonNull BankTabSync bankTabSync) {
         super(true);
 
         this.runeShareConfig = runeShareConfig;
         this.runeShareApi = runeShareApi;
         this.runeShareConnection = runeShareConnection;
         this.runeShareSessionTracker = runeShareSessionTracker;
+        this.bankTabSync = bankTabSync;
 
         runeShareConnection.setListener(this::onConnectionChanged);
+        bankTabSync.setListener(this::redraw);
 
         setBackground(ColorScheme.DARK_GRAY_COLOR);
         setLayout(new BorderLayout());
@@ -333,17 +346,37 @@ public class RuneSharePluginPanel extends PluginPanel {
         if (runeShareConfig.autoSave()) {
             containerPanel.add(Box.createVerticalStrut(4));
             containerPanel.add(createBodyText("Active tags are being saved automatically to RuneShare."));
-            return;
+        } else {
+            final JButton syncButton = new JButton("Sync to RuneShare");
+            syncButton.addActionListener((event) -> {
+                bankTabSync.sync(RuneShareBankTab.from(activeTagTab, activeItemIds, activeLayout, activePlayerAccount));
+            });
+            fullWidth(syncButton);
+
+            containerPanel.add(Box.createVerticalStrut(6));
+            containerPanel.add(syncButton);
         }
 
-        final JButton syncButton = new JButton("Sync to RuneShare");
-        syncButton.addActionListener((event) -> {
-            runeShareApi.createRuneShareBankTab(activeTagTab, activeItemIds, activeLayout, activePlayerAccount);
-        });
-        fullWidth(syncButton);
+        final BankTabSync.Status syncStatus = bankTabSync.getStatus();
+        if (syncStatus != null) {
+            containerPanel.add(Box.createVerticalStrut(6));
+            containerPanel.add(createBodyText(describe(syncStatus)));
+        }
+    }
 
-        containerPanel.add(Box.createVerticalStrut(6));
-        containerPanel.add(syncButton);
+    private static String describe(BankTabSync.Status syncStatus) {
+        final String quotedTag = "'" + syncStatus.getTag() + "'";
+        switch (syncStatus.getState()) {
+            case SYNCING:
+                return "Syncing " + quotedTag + "...";
+            case SYNCED:
+                return "Synced " + quotedTag + " at " + SYNCED_AT_FORMAT.format(syncStatus.getSyncedAt()) + ".";
+            case RETRYING:
+                return "Couldn't sync " + quotedTag + " (" + syncStatus.getFailure() + "), retrying.";
+            case FAILED:
+            default:
+                return "Couldn't sync " + quotedTag + ": " + syncStatus.getFailure() + ".";
+        }
     }
 
     private void addTaskSessionsSection(JPanel containerPanel) {
@@ -353,8 +386,13 @@ public class RuneSharePluginPanel extends PluginPanel {
         }
 
         if (activeTaskSessionId == null) {
-            final JButton startSessionButton = new JButton("Start Session");
+            final JButton startSessionButton = new JButton(startingTaskSession ? "Starting Session..." : "Start Session");
+            // A second click before RuneShare answers would start a second session.
+            startSessionButton.setEnabled(!startingTaskSession);
             startSessionButton.addActionListener((event) -> {
+                startingTaskSession = true;
+                taskSessionError = null;
+
                 final StartTaskSession startTaskSession = StartTaskSession
                         .builder()
                         .npcRunescapeId(activeNpcId)
@@ -363,23 +401,52 @@ public class RuneSharePluginPanel extends PluginPanel {
                         .worldMapPlane(activeWorldMapPlane)
                         .build();
 
-                runeShareSessionTracker.start(startTaskSession, startTaskSessionResponse -> {
-                    this.activeTaskSessionId = startTaskSessionResponse.getTaskSessionId();
-                    this.redraw();
+                runeShareSessionTracker.start(startTaskSession, new StartTaskSessionResponseHandler() {
+                    @Override
+                    public void onSuccess(StartTaskSessionResponse startTaskSessionResponse) {
+                        startingTaskSession = false;
+                        activeTaskSessionId = startTaskSessionResponse.getTaskSessionId();
+                        drawPanel();
+                    }
+
+                    @Override
+                    public void onFailure(String reason) {
+                        startingTaskSession = false;
+                        taskSessionError = "Couldn't start the session: " + reason + ".";
+                        drawPanel();
+                    }
                 });
+                drawPanel();
             });
             fullWidth(startSessionButton);
             containerPanel.add(startSessionButton);
         } else {
             final JButton stopSessionButton = new JButton("Stop Session");
             stopSessionButton.addActionListener((event) -> {
-                runeShareSessionTracker.stop(() -> {
-                    this.activeTaskSessionId = null;
-                    this.redraw();
+                // The tracker forgets the session straight away, so the panel does
+                // too, rather than leaving Stop up until RuneShare answers.
+                activeTaskSessionId = null;
+                taskSessionError = null;
+                runeShareSessionTracker.stop(new StopTaskSessionResponseHandler() {
+                    @Override
+                    public void onSuccess() {
+                    }
+
+                    @Override
+                    public void onFailure(String reason) {
+                        taskSessionError = "Couldn't stop the session on RuneShare: " + reason + ".";
+                        drawPanel();
+                    }
                 });
+                drawPanel();
             });
             fullWidth(stopSessionButton);
             containerPanel.add(stopSessionButton);
+        }
+
+        if (taskSessionError != null) {
+            containerPanel.add(Box.createVerticalStrut(6));
+            containerPanel.add(createBodyText(taskSessionError));
         }
     }
 
