@@ -57,7 +57,7 @@ Three layers, with the plugin class as the only thing touching RuneLite events:
 - **`RuneShareApi`** — all HTTP. `@Singleton`, injected with RuneLite's shared `OkHttpClient` and `Gson`.
 - **`ui/RuneSharePluginPanel`** — the side panel.
 
-`@PluginDependency(BankTagsPlugin.class)` and `@PluginDependency(XpTrackerPlugin.class)` make RuneLite inject `TabManager`, `TagManager`, `BankTagsService`, and `XpTrackerService`. These are the only source of bank tag data; the plugin never reads the bank widget directly.
+`@PluginDependency(BankTagsPlugin.class)` makes RuneLite inject `TabManager`, `TagManager`, and `BankTagsService`. These are the only source of bank tag data; the plugin never reads the bank widget directly.
 
 ### Threading
 

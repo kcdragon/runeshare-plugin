@@ -24,8 +24,6 @@ import net.runelite.client.plugins.banktags.TagManager;
 import net.runelite.client.plugins.banktags.tabs.Layout;
 import net.runelite.client.plugins.banktags.tabs.TabManager;
 import net.runelite.client.plugins.banktags.tabs.TagTab;
-import net.runelite.client.plugins.xptracker.XpTrackerPlugin;
-import net.runelite.client.plugins.xptracker.XpTrackerService;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.util.ImageUtil;
@@ -42,7 +40,6 @@ import java.util.List;
 	tags = { "gear", "inventory", "setups" }
 )
 @PluginDependency(BankTagsPlugin.class)
-@PluginDependency(XpTrackerPlugin.class)
 public class RuneSharePlugin extends Plugin
 {
 	private static final int NAVIGATION_PRIORITY = 100;
@@ -72,9 +69,6 @@ public class RuneSharePlugin extends Plugin
 
 	@Inject
 	private RuneShareApi runeShareApi;
-
-	@Inject
-	private XpTrackerService xpTrackerService;
 
 	private RuneSharePluginPanel panel;
 
