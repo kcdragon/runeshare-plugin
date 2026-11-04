@@ -42,8 +42,8 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @PluginDescriptor(
 	name = "RuneShare",
-	description = "Share bank tabs with other players",
-	tags = { "gear", "inventory", "setups" }
+	description = "Share your bank tag tabs and layouts with other players on RuneShare",
+	tags = { "gear", "inventory", "setups", "bank", "banktags", "bank tags", "tag", "tags", "tab", "tabs", "layout", "layouts", "loadout", "loadouts" }
 )
 @PluginDependency(BankTagsPlugin.class)
 public class RuneSharePlugin extends Plugin

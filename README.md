@@ -6,6 +6,8 @@
 
 Sign up for a RuneShare account [here](https://osrs.runeshare.app/) using your Google Account.
 
+Not sure what to share yet? Browse [setups by boss and activity](https://osrs.runeshare.app/setups), or find the [bank tabs for every OSRS Wiki strategy guide](https://osrs.runeshare.app/guides).
+
 <img src="/docs/google-single-sign-on.png" alt="Google Single Sign On" width="300" />
 
 Create an API token [here](https://osrs.runeshare.app/api_tokens). Don't share this token with anyone. This token is unique for each user.
@@ -20,4 +22,4 @@ Install the RuneShare RuneLite plugin. Copy that token into the RuneShare settin
 
 Check "Auto Save?" if you want to automatically save each bank tag tab in RuneShare.
 
-<img src="/docs/runelite-auto-save-setting.png" alt="Runelite API Token Setting" width="300" />
+<img src="/docs/runelite-auto-save-setting.png" alt="Runelite Auto Save Setting" width="300" />
